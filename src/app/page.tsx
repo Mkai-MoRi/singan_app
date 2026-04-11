@@ -5,25 +5,25 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useJudgments } from "@/hooks/useJudgments";
 import { useOperatorName } from "@/hooks/useOperatorName";
+import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
 import { OPERATOR_NAME_MAX_LEN } from "@/lib/operatorStorage";
-import { hasSecretKeywordFeature } from "@/lib/secretCaseConfig";
-import {
-  catalogSlotTotal,
-  countJudgedInCatalog,
-  firstUndecidedInCatalog,
-  listCatalogWorks,
-} from "@/lib/worksCatalog";
+import { countJudgedInCatalog, firstUndecidedInCatalog, listCatalogWorks } from "@/lib/worksCatalog";
 
 export default function HomePage() {
   const router = useRouter();
   const { judgments, mounted } = useJudgments();
   const { secretUnlocked, secretMounted, tryUnlockWithPhrase } = useSecretCaseUnlock();
+  const { practiceUnlocked, practiceMounted, tryUnlockPracticeWithPhrase } = usePracticeCaseUnlock();
   const { name: operatorName, setName: setOperatorName, commitName: commitOperatorName, mounted: operatorMounted } =
     useOperatorName();
 
-  const catalog = listCatalogWorks(secretMounted && secretUnlocked);
-  const slotTotal = catalogSlotTotal(secretMounted && secretUnlocked);
+  const catalogFlags = {
+    secretUnlocked: !!(secretMounted && secretUnlocked),
+    practiceUnlocked: !!(practiceMounted && practiceUnlocked),
+  };
+  const catalog = listCatalogWorks(catalogFlags);
+  const slotTotal = catalog.length;
   const judged = mounted ? countJudgedInCatalog(catalog, judgments) : 0;
   const authentic = mounted
     ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "authentic").length
@@ -36,7 +36,7 @@ export default function HomePage() {
   const remaining = slotTotal - judged;
 
   const [keywordDraft, setKeywordDraft] = useState("");
-  const [keywordHint, setKeywordHint] = useState<"idle" | "ok" | "fail">("idle");
+  const [keywordHint, setKeywordHint] = useState<"idle" | "ok_secret" | "ok_practice" | "fail">("idle");
 
   useEffect(() => {
     if (keywordHint === "fail") {
@@ -51,14 +51,20 @@ export default function HomePage() {
       const raw = keywordDraft.trim();
       if (!raw) return;
       if (tryUnlockWithPhrase(raw)) {
-        setKeywordHint("ok");
+        setKeywordHint("ok_secret");
         setKeywordDraft("");
         router.push("/works/21");
         return;
       }
+      if (tryUnlockPracticeWithPhrase(raw)) {
+        setKeywordHint("ok_practice");
+        setKeywordDraft("");
+        router.push("/works/0");
+        return;
+      }
       setKeywordHint("fail");
     },
-    [keywordDraft, tryUnlockWithPhrase, router]
+    [keywordDraft, tryUnlockWithPhrase, tryUnlockPracticeWithPhrase, router]
   );
   const callsign =
     operatorMounted && operatorName.trim() ? operatorName.trim() : null;
@@ -78,7 +84,7 @@ export default function HomePage() {
           </p>
           {operatorMounted ? (
             <p className="font-mono text-[0.65rem] leading-relaxed tracking-wide text-[color:var(--fg-muted)] md:text-xs">
-              <span className="text-[color:var(--primary)]/90">OPERATOR</span>
+              <span className="text-[color:var(--primary)]/90">EXAMINER</span>
               <span className="mx-1.5 text-[color:var(--hairline)]">::</span>
               <span className="text-[color:var(--secondary)]">{callsign ?? "NO_CALLSIGN"}</span>
               <span className="mx-1.5 text-[color:var(--hairline)]">·</span>
@@ -163,50 +169,56 @@ export default function HomePage() {
           </Link>
         ) : null}
 
-        {hasSecretKeywordFeature() ? (
-          <form
-            onSubmit={onKeywordSubmit}
-            className="border border-[color:var(--surface-high)]/40 bg-[color:var(--surface-low)]/70 p-4 md:p-5"
-          >
-            <label htmlFor="terminal-keyword" className="mb-2 block text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-              端末キーワード
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="terminal-keyword"
-                name="keyword"
-                type="text"
-                autoComplete="off"
-                placeholder="認証フレーズ"
-                value={keywordDraft}
-                onChange={(e) => {
-                  setKeywordDraft(e.target.value);
-                  if (keywordHint !== "idle") setKeywordHint("idle");
-                }}
-                className="min-w-0 flex-1 border border-[color:var(--hairline)]/50 bg-[color:var(--bg)] px-3 py-2.5 font-mono text-sm text-[color:var(--secondary)] outline-none transition-[border-color,box-shadow] placeholder:text-[color:var(--fg-muted)]/70 focus:border-[color:var(--tertiary)]/50 focus:shadow-[0_0_0_1px_color-mix(in_srgb,var(--tertiary)_30%,transparent)]"
-              />
-              <button
-                type="submit"
-                className="shrink-0 border border-[color:var(--tertiary)]/45 bg-[color:var(--tertiary)]/10 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-wider text-[color:var(--tertiary)] transition-colors hover:bg-[color:var(--tertiary)]/18"
-              >
-                送信
-              </button>
-            </div>
-            {secretMounted && secretUnlocked ? (
-              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]">拡張鑑定枠 ACTIVE（21枠）</p>
-            ) : null}
-            {keywordHint === "ok" ? (
-              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]" role="status">
-                CLEARANCE_ACCEPTED
-              </p>
-            ) : null}
-            {keywordHint === "fail" ? (
-              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--error)]" role="status">
-                CLEARANCE_DENIED
-              </p>
-            ) : null}
-          </form>
-        ) : null}
+        <form
+          onSubmit={onKeywordSubmit}
+          className="border border-[color:var(--surface-high)]/40 bg-[color:var(--surface-low)]/70 p-4 md:p-5"
+        >
+          <label htmlFor="terminal-keyword" className="mb-2 block text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+            端末キーワード
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="terminal-keyword"
+              name="keyword"
+              type="text"
+              autoComplete="off"
+              placeholder="例: 夕陽ちゃん / 練習"
+              value={keywordDraft}
+              onChange={(e) => {
+                setKeywordDraft(e.target.value);
+                if (keywordHint !== "idle") setKeywordHint("idle");
+              }}
+              className="min-w-0 flex-1 border border-[color:var(--hairline)]/50 bg-[color:var(--bg)] px-3 py-2.5 font-mono text-sm text-[color:var(--secondary)] outline-none transition-[border-color,box-shadow] placeholder:text-[color:var(--fg-muted)]/70 focus:border-[color:var(--tertiary)]/50 focus:shadow-[0_0_0_1px_color-mix(in_srgb,var(--tertiary)_30%,transparent)]"
+            />
+            <button
+              type="submit"
+              className="shrink-0 border border-[color:var(--tertiary)]/45 bg-[color:var(--tertiary)]/10 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-wider text-[color:var(--tertiary)] transition-colors hover:bg-[color:var(--tertiary)]/18"
+            >
+              送信
+            </button>
+          </div>
+          {secretMounted && secretUnlocked ? (
+            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]">拡張鑑定枠 ACTIVE（21枠）</p>
+          ) : null}
+          {practiceMounted && practiceUnlocked ? (
+            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--secondary)]">練習枠 ACTIVE（CASE_00）</p>
+          ) : null}
+          {keywordHint === "ok_secret" ? (
+            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]" role="status">
+              CLEARANCE_ACCEPTED
+            </p>
+          ) : null}
+          {keywordHint === "ok_practice" ? (
+            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--secondary)]" role="status">
+              DRILL_MODE_ON
+            </p>
+          ) : null}
+          {keywordHint === "fail" ? (
+            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--error)]" role="status">
+              CLEARANCE_DENIED
+            </p>
+          ) : null}
+        </form>
 
         <div className="border-l-2 border-[color:var(--primary)] bg-[color:var(--surface-low)] p-4 md:p-6">
           <div className="mb-3 flex items-end justify-between md:mb-4">

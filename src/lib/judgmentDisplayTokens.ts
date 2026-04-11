@@ -1,5 +1,19 @@
 import type { Judgment } from "@/lib/judgmentsStorage";
 
+/** セル／ログ行の番号用。背景のトーン上でも読み切れる mono 色（一覧グリッドと同一）。 */
+export function judgmentMonoIdColor(judgment: Judgment): string {
+  switch (judgment) {
+    case "authentic":
+      return "var(--primary-bright)";
+    case "fake":
+      return "var(--tertiary)";
+    case "pending":
+      return "var(--secondary)";
+    default:
+      return "color-mix(in srgb, var(--secondary) 92%, var(--bg))";
+  }
+}
+
 /**
  * 判定結果の色（このプロダクトの約束）
  * - 本物 authentic … ピンク系（--primary / --error のトーン）

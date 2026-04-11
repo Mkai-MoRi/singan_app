@@ -3,10 +3,11 @@
 import { Fragment, useCallback, useState } from "react";
 import Link from "next/link";
 import { useJudgments } from "@/hooks/useJudgments";
+import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
 import { countJudgedInCatalog, listCatalogWorks } from "@/lib/worksCatalog";
 import { Judgment } from "@/lib/judgmentsStorage";
-import { judgmentGridCellStyle } from "@/lib/judgmentDisplayTokens";
+import { judgmentGridCellStyle, judgmentMonoIdColor } from "@/lib/judgmentDisplayTokens";
 import { buildSummaryShareAbsoluteUrl } from "@/lib/judgmentsUrlCodec";
 
 const STATUS_LABEL: Record<Judgment, string> = {
@@ -27,26 +28,16 @@ const GRID_LEGEND = [
   },
 ] as const;
 
-/** セル背景に対して番号が読み切れる色（DESIGN: 数値は mono） */
-function gridCellIdColor(judgment: Judgment): string {
-  switch (judgment) {
-    case "authentic":
-      return "var(--primary-bright)";
-    case "fake":
-      return "var(--tertiary)";
-    case "pending":
-      return "var(--secondary)";
-    default:
-      return "color-mix(in srgb, var(--secondary) 92%, var(--bg))";
-  }
-}
-
 export default function WorksPage() {
   const { judgments, mounted } = useJudgments();
   const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
+  const { practiceUnlocked, practiceMounted } = usePracticeCaseUnlock();
   const [shareHint, setShareHint] = useState<"idle" | "ok" | "err">("idle");
 
-  const catalog = listCatalogWorks(secretMounted && secretUnlocked);
+  const catalog = listCatalogWorks({
+    secretUnlocked: !!(secretMounted && secretUnlocked),
+    practiceUnlocked: !!(practiceMounted && practiceUnlocked),
+  });
   const slotTotal = catalog.length;
 
   const copyShareUrl = useCallback(async () => {
@@ -74,16 +65,16 @@ export default function WorksPage() {
       <section className="mb-8 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
         <div className="mb-1 flex items-end justify-between">
           <span className="font-display text-[0.6875rem] font-bold tracking-[0.2em] text-[color:var(--primary)]">
-            System Status: Active
+            Appraisal Station: Active
           </span>
           <span className="font-mono text-[0.6rem]" style={{ color: "var(--fg-muted)" }}>
-            [SEQ_GRID_01]
+            [CASE_INDEX]
           </span>
         </div>
         <div className="mb-6 h-px w-full bg-[color:var(--hairline)]/40" />
         <div className="grid grid-cols-2 gap-4">
           <div className="border-l-2 border-[color:var(--primary)] bg-[color:var(--surface-low)] p-3">
-            <p className="mb-1 text-[0.6rem] font-bold uppercase tracking-widest text-[color:var(--fg-muted)]">Batch Progress</p>
+            <p className="mb-1 text-[0.6rem] font-bold uppercase tracking-widest text-[color:var(--fg-muted)]">Case Progress</p>
             <p className="font-display text-2xl font-bold text-[color:var(--primary)]">
               {mounted ? Math.round((judged / slotTotal) * 100) : "—"}
               <span className="text-sm opacity-50" style={{ color: "var(--secondary)" }}>
@@ -107,7 +98,7 @@ export default function WorksPage() {
         <div className="mb-4 flex flex-col gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:flex-row sm:items-end sm:justify-between sm:gap-2">
           <h2 className="flex items-center gap-2 font-display text-sm font-bold tracking-tighter uppercase">
             <span className="h-3 w-1 bg-[color:var(--primary)]" />
-            Diagnostic Grid
+            Appraisal Grid
           </h2>
           <p
             className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-[0.56rem] font-medium uppercase tracking-[0.14em] sm:text-[0.58rem]"
@@ -162,7 +153,7 @@ export default function WorksPage() {
                   <span
                     className="font-mono text-[0.9rem] font-bold tabular-nums leading-none tracking-tight sm:text-[1.05rem]"
                     style={{
-                      color: gridCellIdColor(judgment),
+                      color: judgmentMonoIdColor(judgment),
                       textShadow: "0 1px 0 color-mix(in srgb, var(--bg) 55%, transparent)",
                     }}
                   >
@@ -194,23 +185,23 @@ export default function WorksPage() {
       <section className="ml-[max(0.75rem,env(safe-area-inset-left))] mr-[max(0.75rem,env(safe-area-inset-right))] border border-[color:var(--surface-high)]/30 bg-[color:var(--bg)] p-4">
         <div className="mb-3 flex items-center justify-between">
           <span className="font-display text-[0.6875rem] font-bold uppercase tracking-tight text-[color:var(--primary)]">
-            Point Trace: Archive
+            Appraisal Ledger
           </span>
           <span className="font-mono text-[0.6rem]" style={{ color: "var(--fg-muted)" }}>
-            [LOCAL_STORE]
+            [ON_DEVICE]
           </span>
         </div>
         <div className="space-y-2 text-[0.65rem]">
           <div className="flex justify-between border-b border-[color:var(--surface-high)]/15 pb-1">
-            <span style={{ color: "var(--fg-muted)" }}>JUDGED_TOTAL</span>
+            <span style={{ color: "var(--fg-muted)" }}>JUDGED_CASES</span>
             <span className="font-mono">{mounted ? judged : "—"} / {slotTotal}</span>
           </div>
           <div className="flex justify-between border-b border-[color:var(--surface-high)]/15 pb-1">
-            <span style={{ color: "var(--fg-muted)" }}>AUTH_SIGNAL</span>
+            <span style={{ color: "var(--fg-muted)" }}>AUTHENTIC_COUNT</span>
             <span className="font-mono text-[color:var(--primary)]">{mounted ? authentic : "—"}</span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: "var(--fg-muted)" }}>PENDING_BUFFER</span>
+            <span style={{ color: "var(--fg-muted)" }}>PENDING_HOLD</span>
             <span className="font-mono">
               {mounted ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "pending").length : "—"}
             </span>

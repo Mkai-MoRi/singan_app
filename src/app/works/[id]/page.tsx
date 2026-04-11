@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useJudgments } from "@/hooks/useJudgments";
+import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
-import { findCatalogWork, catalogSlotTotal } from "@/lib/worksCatalog";
+import { adjacentCatalogIds, findCatalogWork, listCatalogWorks } from "@/lib/worksCatalog";
 import { Judgment } from "@/lib/judgmentsStorage";
 
 const SWIPE_THRESHOLD = 88;
@@ -14,10 +15,17 @@ export default function JudgePage() {
   const router = useRouter();
   const { judgments, saveJudgment, mounted } = useJudgments();
   const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
+  const { practiceUnlocked, practiceMounted } = usePracticeCaseUnlock();
 
   const id = Number(params.id);
-  const slotTotal = catalogSlotTotal(secretMounted ? secretUnlocked : false);
-  const work = secretMounted ? findCatalogWork(id, secretUnlocked) : findCatalogWork(id, false);
+  const catalogFlags = {
+    secretUnlocked: secretMounted && secretUnlocked,
+    practiceUnlocked: practiceMounted && practiceUnlocked,
+  };
+  const catalog = listCatalogWorks(catalogFlags);
+  const slotTotal = catalog.length;
+  const work = findCatalogWork(id, catalogFlags);
+  const { prev: prevId, next: nextId } = adjacentCatalogIds(catalog, id);
 
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -29,9 +37,10 @@ export default function JudgePage() {
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!secretMounted) return;
+    if (id === 21 && !secretMounted) return;
+    if (id === 0 && !practiceMounted) return;
     if (!work) router.replace("/works");
-  }, [secretMounted, work, router]);
+  }, [id, secretMounted, practiceMounted, work, router]);
 
   useEffect(() => {
     return () => {
@@ -135,6 +144,14 @@ export default function JudgePage() {
   }, []);
 
   if (id === 21 && !secretMounted) {
+    return (
+      <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
+        <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">[SYNC_SESSION]</p>
+      </main>
+    );
+  }
+
+  if (id === 0 && !practiceMounted) {
     return (
       <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
         <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">[SYNC_SESSION]</p>
@@ -472,15 +489,15 @@ export default function JudgePage() {
         </div>
 
         <div className="flex justify-between px-1 text-[0.65rem]" style={{ color: "var(--fg-muted)" }}>
-          {id > 1 ? (
-            <button type="button" onClick={() => router.push(`/works/${id - 1}`)} className="py-2">
+          {prevId != null ? (
+            <button type="button" onClick={() => router.push(`/works/${prevId}`)} className="py-2">
               ← PREV
             </button>
           ) : (
             <span />
           )}
-          {id < slotTotal ? (
-            <button type="button" onClick={() => router.push(`/works/${id + 1}`)} className="py-2">
+          {nextId != null ? (
+            <button type="button" onClick={() => router.push(`/works/${nextId}`)} className="py-2">
               NEXT →
             </button>
           ) : (

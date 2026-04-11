@@ -1,4 +1,4 @@
-import { listCatalogWorks } from "@/lib/worksCatalog";
+import { listCodecCatalogWorks } from "@/lib/worksCatalog";
 import type { Judgment, JudgmentRecord } from "@/lib/judgmentsStorage";
 
 const BY_JUDGMENT: Record<Judgment, string> = {
@@ -17,7 +17,7 @@ const BY_CHAR: Record<string, Judgment> = {
 
 /** カタログ分を `u|a|f|p` の連結で表現（20 または 21 文字・URL クエリ用） */
 export function encodeJudgmentsParam(record: JudgmentRecord, secretUnlocked: boolean): string {
-  return listCatalogWorks(secretUnlocked)
+  return listCodecCatalogWorks(secretUnlocked)
     .map((w) => {
       const j: Judgment = record[w.id] ?? "undecided";
       return BY_JUDGMENT[j];

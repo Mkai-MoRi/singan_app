@@ -1,18 +1,43 @@
-import { SECRET_WORK, WORKS, type Work } from "@/lib/dummyWorks";
+import { PRACTICE_WORK, SECRET_WORK, WORKS, type Work } from "@/lib/dummyWorks";
 import type { JudgmentRecord } from "@/lib/judgmentsStorage";
 
 export const BASE_CATALOG_SIZE = 20;
 
-export function listCatalogWorks(secretUnlocked: boolean): readonly Work[] {
-  return secretUnlocked ? [...WORKS, SECRET_WORK] : WORKS;
+export type CatalogUnlockFlags = {
+  secretUnlocked: boolean;
+  practiceUnlocked: boolean;
+};
+
+export function listCatalogWorks(flags: CatalogUnlockFlags): readonly Work[] {
+  const practice = flags.practiceUnlocked ? [PRACTICE_WORK] : [];
+  const core = [...WORKS];
+  const secret = flags.secretUnlocked ? [SECRET_WORK] : [];
+  return [...practice, ...core, ...secret];
 }
 
-export function catalogSlotTotal(secretUnlocked: boolean): number {
-  return secretUnlocked ? 21 : BASE_CATALOG_SIZE;
+/** 共有 `?j=` 用: 1–20 + オプション 21。練習 id 0 は含めない。 */
+export function listCodecCatalogWorks(secretUnlocked: boolean): readonly Work[] {
+  return listCatalogWorks({ secretUnlocked, practiceUnlocked: false });
 }
 
-export function findCatalogWork(id: number, secretUnlocked: boolean): Work | undefined {
-  return listCatalogWorks(secretUnlocked).find((w) => w.id === id);
+export function catalogSlotTotal(flags: CatalogUnlockFlags): number {
+  return listCatalogWorks(flags).length;
+}
+
+export function findCatalogWork(id: number, flags: CatalogUnlockFlags): Work | undefined {
+  return listCatalogWorks(flags).find((w) => w.id === id);
+}
+
+export function adjacentCatalogIds(
+  catalog: readonly Work[],
+  id: number
+): { prev: number | null; next: number | null } {
+  const idx = catalog.findIndex((w) => w.id === id);
+  if (idx < 0) return { prev: null, next: null };
+  return {
+    prev: idx > 0 ? catalog[idx - 1]!.id : null,
+    next: idx < catalog.length - 1 ? catalog[idx + 1]!.id : null,
+  };
 }
 
 export function countJudgedInCatalog(catalog: readonly Work[], record: JudgmentRecord): number {

@@ -28,6 +28,14 @@ export const WORKS: Work[] = [
   { id: 20, caseName: "CASE_20", title: "無名の肖像",         meta: "油彩・キャンバス / 推定1890s" },
 ];
 
+/** キーワード「練習」解禁後のみ先頭に載る練習枠（00） */
+export const PRACTICE_WORK: Work = {
+  id: 0,
+  caseName: "CASE_00",
+  title: "練習問題",
+  meta: "操作トレーニング / 本番枠（01–20）と独立",
+};
+
 /** キーワード解禁後のみカタログに載る拡張枠（id 21） */
 export const SECRET_WORK: Work = {
   id: 21,
