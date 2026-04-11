@@ -16,7 +16,7 @@ export function judgmentMonoIdColor(judgment: Judgment): string {
 
 /**
  * 判定結果の色（このプロダクトの約束）
- * - 本物 authentic … ピンク系（--primary / --error のトーン）
+ * - 本物 authentic … ピンク系（--primary：彩度を保ったセル塗り）
  * - 偽物 fake … 緑（--tertiary）
  * - 保留 pending … --secondary（従来どおり）
  */
@@ -26,8 +26,9 @@ export const judgmentGridCellStyle: Record<
   { bg: string; border: string }
 > = {
   authentic: {
-    bg: "color-mix(in srgb, var(--error) 30%, var(--surface-low))",
-    border: "color-mix(in srgb, var(--error) 58%, transparent)",
+    /* 一段明るいピンクを足してグレー寄りの濁りを減らす。境界は transparent ではなく primary と混ぜてはっきりした縁にする */
+    bg: "color-mix(in srgb, var(--primary-bright) 10%, color-mix(in srgb, var(--primary) 30%, var(--surface-low)))",
+    border: "color-mix(in srgb, var(--primary-bright) 42%, var(--primary))",
   },
   fake: {
     bg: "color-mix(in srgb, var(--tertiary) 26%, var(--surface-low))",
@@ -49,9 +50,9 @@ export const judgmentStatusStyle: Record<
     border: "color-mix(in srgb, var(--hairline) 18%, transparent)",
   },
   authentic: {
-    bg: "color-mix(in srgb, var(--error) 24%, var(--surface-high))",
-    fg: "var(--primary)",
-    border: "color-mix(in srgb, var(--error) 40%, transparent)",
+    bg: "color-mix(in srgb, var(--primary-bright) 8%, color-mix(in srgb, var(--primary) 22%, var(--surface-high)))",
+    fg: "var(--primary-bright)",
+    border: "color-mix(in srgb, var(--primary-bright) 36%, var(--primary))",
   },
   fake: {
     bg: "color-mix(in srgb, var(--tertiary) 16%, var(--surface-high))",

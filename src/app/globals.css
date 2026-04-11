@@ -114,3 +114,57 @@ html, body {
   background-size: 20px 20px, 22px 22px;
   background-position: 0 0, 11px 7px;
 }
+
+/* ---- /works 入場: 判定画面のスワイプ方向に連動 ---- */
+@keyframes works-reveal-from-left {
+  from {
+    transform: translate3d(calc(-1 * min(92vw, 22rem)), 0, 0);
+    opacity: 0.42;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes works-reveal-from-right {
+  from {
+    transform: translate3d(min(92vw, 22rem), 0, 0);
+    opacity: 0.42;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes works-reveal-soft {
+  from {
+    transform: translate3d(0, 0.6rem, 0);
+    opacity: 0.22;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.works-reveal-from-left {
+  animation: works-reveal-from-left 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.works-reveal-from-right {
+  animation: works-reveal-from-right 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.works-reveal-soft {
+  animation: works-reveal-soft 0.36s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .works-reveal-from-left,
+  .works-reveal-from-right,
+  .works-reveal-soft {
+    animation: none !important;
+  }
+}
