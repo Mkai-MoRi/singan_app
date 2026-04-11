@@ -8,7 +8,9 @@ import { useOperatorName } from "@/hooks/useOperatorName";
 import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
 import { OPERATOR_NAME_MAX_LEN } from "@/lib/operatorStorage";
-import { countJudgedInCatalog, firstUndecidedInCatalog, listCatalogWorks } from "@/lib/worksCatalog";
+import { countJudgedInCatalog, listCatalogWorks } from "@/lib/worksCatalog";
+import { firstUndecidedAccessibleInCatalog } from "@/lib/workPhases";
+import { resetTerminal } from "@/lib/terminalReset";
 
 export default function HomePageClient() {
   const router = useRouter();
@@ -32,7 +34,7 @@ export default function HomePageClient() {
   const pending = mounted ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "pending").length : 0;
   const pct = Math.round((judged / slotTotal) * 100);
   const scanPct = mounted ? ((judged / slotTotal) * 100).toFixed(1) : null;
-  const nextWork = mounted ? firstUndecidedInCatalog(judgments, catalog) : null;
+  const nextWork = mounted ? firstUndecidedAccessibleInCatalog(judgments, catalog) : null;
   const remaining = slotTotal - judged;
 
   const [keywordDraft, setKeywordDraft] = useState("");
@@ -66,6 +68,15 @@ export default function HomePageClient() {
     },
     [keywordDraft, tryUnlockWithPhrase, tryUnlockPracticeWithPhrase, router]
   );
+
+  const onResetTerminal = useCallback(() => {
+    const ok = window.confirm(
+      "端末に保存された鑑定記録・呼称・拡張枠（秘密・練習）の解除状態をすべて消去します。共有用 URL の取り込み（?j=）も解除されます。続行しますか？"
+    );
+    if (!ok) return;
+    resetTerminal();
+  }, []);
+
   const callsign =
     operatorMounted && operatorName.trim() ? operatorName.trim() : null;
 
@@ -135,6 +146,22 @@ export default function HomePageClient() {
           <p className="mt-2 text-[0.6rem] leading-relaxed text-[color:var(--fg-muted)]">
             端末内のみに保存。記録タブのヘッダにも表示されます。
           </p>
+        </div>
+
+        <div className="border border-[color:var(--error)]/25 bg-[color:var(--surface-low)]/60 p-4 md:p-5">
+          <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+            メンテナンス
+          </p>
+          <p className="mb-3 text-[0.65rem] leading-relaxed text-[color:var(--secondary)]">
+            このブラウザに保存した端末データをすべて消去し、出荷時相当の状態に戻します。
+          </p>
+          <button
+            type="button"
+            onClick={onResetTerminal}
+            className="w-full border border-[color:var(--error)]/45 bg-[color:var(--error)]/8 px-3 py-2.5 font-mono text-[0.65rem] font-bold uppercase tracking-wider text-[color:var(--error)] transition-colors hover:bg-[color:var(--error)]/14"
+          >
+            端末をリセット
+          </button>
         </div>
 
         {mounted && nextWork ? (

@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { useJudgments } from "@/hooks/useJudgments";
 import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
-import { adjacentCatalogIds, findCatalogWork, listCatalogWorks } from "@/lib/worksCatalog";
+import { findCatalogWork, listCatalogWorks } from "@/lib/worksCatalog";
+import {
+  adjacentAccessibleCatalogIds,
+  canAccessCatalogWork,
+  isCoreCatalogComplete,
+  isCorePhase1Complete,
+  isCorePhase2Complete,
+} from "@/lib/workPhases";
 import { Judgment } from "@/lib/judgmentsStorage";
 import { setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
@@ -23,7 +30,7 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   const catalog = listCatalogWorks(catalogFlags);
   const slotTotal = catalog.length;
   const work = findCatalogWork(id, catalogFlags);
-  const { prev: prevId, next: nextId } = adjacentCatalogIds(catalog, id);
+  const { prev: prevId, next: nextId } = adjacentAccessibleCatalogIds(catalog, id, judgments);
 
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -39,6 +46,13 @@ export default function JudgeWorkClient({ id }: { id: number }) {
     if (id === 0 && !practiceMounted) return;
     if (!work) router.replace("/works");
   }, [id, secretMounted, practiceMounted, work, router]);
+
+  useEffect(() => {
+    if (!mounted || !work) return;
+    if (id >= 1 && id <= 20 && !canAccessCatalogWork(id, judgments)) {
+      router.replace("/works");
+    }
+  }, [mounted, work, id, judgments, router]);
 
   useEffect(() => {
     return () => {
@@ -63,6 +77,21 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   const commit = useCallback(
     (value: Judgment, dir: "left" | "right" | "pending") => {
       saveJudgment(id, value);
+      const nextRecord = { ...judgments, [id]: value };
+      let worksHref = "/works";
+      if (id >= 1 && id <= 20) {
+        if (!isCorePhase1Complete(judgments) && isCorePhase1Complete(nextRecord)) {
+          worksHref = "/works?reveal=afterPhase1";
+        } else if (
+          isCorePhase1Complete(nextRecord) &&
+          !isCorePhase2Complete(judgments) &&
+          isCorePhase2Complete(nextRecord)
+        ) {
+          worksHref = "/works?reveal=afterPhase2";
+        } else if (!isCoreCatalogComplete(judgments) && isCoreCatalogComplete(nextRecord)) {
+          worksHref = "/works?reveal=afterPhase3";
+        }
+      }
       dragXRef.current = 0;
       setDragX(0);
       if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
@@ -72,10 +101,10 @@ export default function JudgeWorkClient({ id }: { id: number }) {
       commitTimerRef.current = setTimeout(() => {
         commitTimerRef.current = null;
         setFlyDir(null);
-        router.push("/works");
+        router.push(worksHref);
       }, resetMs);
     },
-    [id, saveJudgment, router]
+    [id, judgments, saveJudgment, router]
   );
 
   const onPointerDown = useCallback(

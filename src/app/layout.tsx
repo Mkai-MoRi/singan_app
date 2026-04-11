@@ -41,6 +41,12 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0..1,0&display=swap"
         />
+        {/* フェーズ完了演出の漢字タイトル用（next/font 外で日本語グリフを確実に） */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&display=swap"
+        />
       </head>
       <body className="relative flex min-h-dvh flex-col">
         <div className="noise-overlay" aria-hidden="true" />

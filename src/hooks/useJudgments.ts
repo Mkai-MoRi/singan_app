@@ -10,6 +10,7 @@ import {
 } from "@/lib/judgmentsStorage";
 import { decodeJudgmentsParam } from "@/lib/judgmentsUrlCodec";
 import { saveSecretCaseUnlocked } from "@/lib/secretCaseStorage";
+import { TERMINAL_RESET_EVENT } from "@/lib/terminalReset";
 
 export function useJudgments() {
   const [judgments, setJudgments] = useState<JudgmentRecord>({});
@@ -33,6 +34,12 @@ export function useJudgments() {
       }
       setMounted(true);
     });
+  }, []);
+
+  useEffect(() => {
+    const onReset = () => setJudgments(loadJudgments());
+    window.addEventListener(TERMINAL_RESET_EVENT, onReset);
+    return () => window.removeEventListener(TERMINAL_RESET_EVENT, onReset);
   }, []);
 
   const saveJudgment = useCallback((id: number, value: Judgment) => {
