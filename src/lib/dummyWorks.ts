@@ -1,0 +1,29 @@
+export interface Work {
+  id: number;
+  caseName: string;
+  title: string;
+  meta: string;
+}
+
+export const WORKS: Work[] = [
+  { id: 1,  caseName: "CASE_01", title: "無題・濃紺",        meta: "油彩・キャンバス / 推定1980s" },
+  { id: 2,  caseName: "CASE_02", title: "静物 No.7",          meta: "水彩・紙 / 推定1960s" },
+  { id: 3,  caseName: "CASE_03", title: "朱の矩形",           meta: "アクリル・木板 / 推定1990s" },
+  { id: 4,  caseName: "CASE_04", title: "港の夕景",           meta: "油彩・キャンバス / 推定1940s" },
+  { id: 5,  caseName: "CASE_05", title: "裸婦習作 III",       meta: "木炭・紙 / 推定1930s" },
+  { id: 6,  caseName: "CASE_06", title: "幾何学的構成 α",     meta: "油彩・キャンバス / 推定1970s" },
+  { id: 7,  caseName: "CASE_07", title: "風景断片 #12",       meta: "水彩・紙 / 推定1950s" },
+  { id: 8,  caseName: "CASE_08", title: "石膏頭部",           meta: "ブロンズ鋳造 / 推定1920s" },
+  { id: 9,  caseName: "CASE_09", title: "抽象・白",           meta: "油彩・麻布 / 推定2000s" },
+  { id: 10, caseName: "CASE_10", title: "室内 午後",          meta: "油彩・キャンバス / 推定1970s" },
+  { id: 11, caseName: "CASE_11", title: "花卉 No.3",          meta: "水彩・紙 / 推定1990s" },
+  { id: 12, caseName: "CASE_12", title: "浜辺の人物",         meta: "油彩・キャンバス / 推定1960s" },
+  { id: 13, caseName: "CASE_13", title: "黒の習作",           meta: "インク・紙 / 推定1980s" },
+  { id: 14, caseName: "CASE_14", title: "女性肖像 習作",      meta: "鉛筆・紙 / 推定1910s" },
+  { id: 15, caseName: "CASE_15", title: "都市 断面",          meta: "アクリル・ボード / 推定2010s" },
+  { id: 16, caseName: "CASE_16", title: "山岳 No.2",          meta: "油彩・キャンバス / 推定1950s" },
+  { id: 17, caseName: "CASE_17", title: "赤い矩形と円",       meta: "エナメル・鉄板 / 推定1970s" },
+  { id: 18, caseName: "CASE_18", title: "波濤",               meta: "油彩・キャンバス / 推定1930s" },
+  { id: 19, caseName: "CASE_19", title: "グリッド構成 VII",   meta: "シルクスクリーン / 推定1980s" },
+  { id: 20, caseName: "CASE_20", title: "無名の肖像",         meta: "油彩・キャンバス / 推定1890s" },
+];
