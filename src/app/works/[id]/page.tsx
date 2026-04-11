@@ -73,7 +73,7 @@ export default function JudgePage() {
       commitTimerRef.current = setTimeout(() => {
         commitTimerRef.current = null;
         setFlyDir(null);
-        if (dir === "pending") router.push("/works");
+        router.push("/works");
       }, resetMs);
     },
     [id, saveJudgment, router]
