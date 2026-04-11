@@ -27,3 +27,11 @@ export const WORKS: Work[] = [
   { id: 19, caseName: "CASE_19", title: "グリッド構成 VII",   meta: "シルクスクリーン / 推定1980s" },
   { id: 20, caseName: "CASE_20", title: "無名の肖像",         meta: "油彩・キャンバス / 推定1890s" },
 ];
+
+/** キーワード解禁後のみカタログに載る拡張枠（id 21） */
+export const SECRET_WORK: Work = {
+  id: 21,
+  caseName: "CASE_21_EXT",
+  title: "夕陽参照アーカイブ",
+  meta: "デジタル複製 / 制限解除枠",
+};

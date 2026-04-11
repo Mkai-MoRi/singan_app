@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { WORKS } from "@/lib/dummyWorks";
 import { useJudgments } from "@/hooks/useJudgments";
+import { useOperatorName } from "@/hooks/useOperatorName";
+import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
 import { Judgment } from "@/lib/judgmentsStorage";
+import { listCatalogWorks } from "@/lib/worksCatalog";
 import { judgmentGridCellStyle, judgmentStatusStyle } from "@/lib/judgmentDisplayTokens";
 
 const STATUS_LABEL: Record<Judgment, string> = {
@@ -17,16 +19,21 @@ const STATUS_STYLE = judgmentStatusStyle;
 
 export default function SummaryPage() {
   const { judgments, mounted } = useJudgments();
+  const { name: operatorName, mounted: operatorMounted } = useOperatorName();
+  const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
+
+  const catalog = listCatalogWorks(secretMounted && secretUnlocked);
+  const slotTotal = catalog.length;
 
   const counts = { authentic: 0, fake: 0, pending: 0, undecided: 0 };
   if (mounted) {
-    for (const work of WORKS) {
+    for (const work of catalog) {
       const j: Judgment = judgments[work.id] ?? "undecided";
       counts[j]++;
     }
   }
 
-  const judged = mounted ? WORKS.length - counts.undecided : 0;
+  const judged = mounted ? slotTotal - counts.undecided : 0;
   const successPct = mounted && judged > 0 ? Math.round((counts.authentic / judged) * 100) : mounted ? 0 : 0;
 
   const padX = "pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]";
@@ -44,6 +51,13 @@ export default function SummaryPage() {
             SYS_DATE: LOCAL
           </span>
         </div>
+        {operatorMounted && operatorName.trim() ? (
+          <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">
+            <span className="text-[color:var(--primary)]/85">OPERATOR</span>
+            <span className="mx-1.5 text-[color:var(--hairline)]">::</span>
+            <span className="text-[color:var(--secondary)]">{operatorName.trim()}</span>
+          </p>
+        ) : null}
         <div className="h-px w-full bg-[color:var(--hairline)]/40" />
       </header>
 
@@ -54,7 +68,7 @@ export default function SummaryPage() {
             <span className="font-display text-3xl font-bold leading-none tracking-tighter tabular-nums" style={{ color: "var(--secondary)" }}>
               {mounted ? judged : "—"}
               <span className="text-[color:var(--primary)]">/</span>
-              20
+              {slotTotal}
             </span>
           </div>
         </div>
@@ -79,7 +93,7 @@ export default function SummaryPage() {
           </span>
         </div>
         <div className="flex w-full flex-col border-y border-[color:var(--surface-high)]/20">
-          {WORKS.map((work) => {
+          {catalog.map((work) => {
             const judgment: Judgment = mounted ? judgments[work.id] ?? "undecided" : "undecided";
             const st = STATUS_STYLE[judgment];
             const highlight = judgment === "authentic";
@@ -160,12 +174,12 @@ export default function SummaryPage() {
             <div>
               <p className="font-display text-[0.6rem] font-bold uppercase tracking-widest text-[color:var(--fg-muted)]">Audit Status</p>
               <p className="font-mono text-xs" style={{ color: "var(--secondary)" }}>
-                BUFFER: {mounted ? `${((judged / 20) * 100).toFixed(1)}%` : "—"} FILLED
+                BUFFER: {mounted ? `${((judged / slotTotal) * 100).toFixed(1)}%` : "—"} FILLED
               </p>
             </div>
           </div>
           <div className="h-0.5 w-full overflow-hidden bg-[color:var(--surface-high)]">
-            <div className="h-full bg-[color:var(--primary)] transition-[width] duration-300" style={{ width: mounted ? `${(judged / 20) * 100}%` : "0%" }} />
+            <div className="h-full bg-[color:var(--primary)] transition-[width] duration-300" style={{ width: mounted ? `${(judged / slotTotal) * 100}%` : "0%" }} />
           </div>
         </div>
       </section>

@@ -9,6 +9,7 @@ import {
   replaceJudgments,
 } from "@/lib/judgmentsStorage";
 import { decodeJudgmentsParam } from "@/lib/judgmentsUrlCodec";
+import { saveSecretCaseUnlocked } from "@/lib/secretCaseStorage";
 
 export function useJudgments() {
   const [judgments, setJudgments] = useState<JudgmentRecord>({});
@@ -19,8 +20,12 @@ export function useJudgments() {
     // `?j=` があれば共有セッションとしてストレージごと上書き
     queueMicrotask(() => {
       const params = new URLSearchParams(window.location.search);
-      const fromUrl = decodeJudgmentsParam(params.get("j"));
+      const jRaw = params.get("j");
+      const fromUrl = decodeJudgmentsParam(jRaw);
       if (fromUrl !== null) {
+        if (jRaw !== null && jRaw.length === 21) {
+          saveSecretCaseUnlocked(true);
+        }
         replaceJudgments(fromUrl);
         setJudgments(fromUrl);
       } else {

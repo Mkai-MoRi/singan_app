@@ -59,7 +59,7 @@ export default function AppChrome({ children }: { children: ReactNode }) {
   const onWorksIndex = pathname === "/works";
   const onJudge = pathname.startsWith("/works/") && pathname !== "/works";
   const onSummary = pathname === "/summary";
-  const onTrust = pathname === "/trust";
+  const onExhibition = pathname === "/exhibition";
 
   const worksTabActive = onWorksIndex || onJudge;
 
@@ -73,7 +73,7 @@ export default function AppChrome({ children }: { children: ReactNode }) {
         <NavItem href="/" icon="qr_code_scanner" label="端末" active={onHome} />
         <NavItem href="/works" icon="analytics" label="一覧" active={worksTabActive} />
         <NavItem href="/summary" icon="history_edu" label="記録" active={onSummary} />
-        <NavItem href="/trust" icon="shield_with_heart" label="信頼" active={onTrust} />
+        <NavItem href="/exhibition" icon="open_in_new" label="公式" active={onExhibition} />
       </nav>
     </div>
   );

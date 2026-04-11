@@ -12,16 +12,16 @@ export const judgmentGridCellStyle: Record<
   { bg: string; border: string }
 > = {
   authentic: {
-    bg: "color-mix(in srgb, var(--error) 22%, var(--surface-low))",
-    border: "color-mix(in srgb, var(--error) 48%, transparent)",
+    bg: "color-mix(in srgb, var(--error) 30%, var(--surface-low))",
+    border: "color-mix(in srgb, var(--error) 58%, transparent)",
   },
   fake: {
-    bg: "color-mix(in srgb, var(--tertiary) 18%, var(--surface-low))",
-    border: "color-mix(in srgb, var(--tertiary) 50%, transparent)",
+    bg: "color-mix(in srgb, var(--tertiary) 26%, var(--surface-low))",
+    border: "color-mix(in srgb, var(--tertiary) 60%, transparent)",
   },
   pending: {
-    bg: "color-mix(in srgb, var(--secondary) 14%, var(--surface-low))",
-    border: "color-mix(in srgb, var(--hairline) 24%, transparent)",
+    bg: "color-mix(in srgb, var(--secondary) 20%, var(--surface-low))",
+    border: "color-mix(in srgb, var(--secondary) 38%, transparent)",
   },
 };
 

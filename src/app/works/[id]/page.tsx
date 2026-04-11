@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { WORKS } from "@/lib/dummyWorks";
 import { useJudgments } from "@/hooks/useJudgments";
+import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
+import { findCatalogWork, catalogSlotTotal } from "@/lib/worksCatalog";
 import { Judgment } from "@/lib/judgmentsStorage";
 
 const SWIPE_THRESHOLD = 88;
@@ -12,9 +13,11 @@ export default function JudgePage() {
   const params = useParams();
   const router = useRouter();
   const { judgments, saveJudgment, mounted } = useJudgments();
+  const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
 
   const id = Number(params.id);
-  const work = WORKS.find((w) => w.id === id);
+  const slotTotal = catalogSlotTotal(secretMounted ? secretUnlocked : false);
+  const work = secretMounted ? findCatalogWork(id, secretUnlocked) : findCatalogWork(id, false);
 
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -26,8 +29,9 @@ export default function JudgePage() {
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!secretMounted) return;
     if (!work) router.replace("/works");
-  }, [work, router]);
+  }, [secretMounted, work, router]);
 
   useEffect(() => {
     return () => {
@@ -130,6 +134,14 @@ export default function JudgePage() {
     setDragX(0);
   }, []);
 
+  if (id === 21 && !secretMounted) {
+    return (
+      <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
+        <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">[SYNC_SESSION]</p>
+      </main>
+    );
+  }
+
   if (!work) return null;
 
   const activeDragX = flyDir === "right" ? 680 : flyDir === "left" ? -680 : dragX;
@@ -222,7 +234,7 @@ export default function JudgePage() {
           ← 一覧
         </button>
         <span className="font-mono text-[0.6rem]" style={{ color: "var(--fg-muted)" }}>
-          {String(id).padStart(2, "0")} / 20
+          {String(id).padStart(2, "0")} / {slotTotal}
         </span>
       </div>
 
@@ -467,7 +479,7 @@ export default function JudgePage() {
           ) : (
             <span />
           )}
-          {id < 20 ? (
+          {id < slotTotal ? (
             <button type="button" onClick={() => router.push(`/works/${id + 1}`)} className="py-2">
               NEXT →
             </button>

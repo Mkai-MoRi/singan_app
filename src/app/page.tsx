@@ -1,14 +1,67 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useJudgments } from "@/hooks/useJudgments";
+import { useOperatorName } from "@/hooks/useOperatorName";
+import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
+import { OPERATOR_NAME_MAX_LEN } from "@/lib/operatorStorage";
+import { hasSecretKeywordFeature } from "@/lib/secretCaseConfig";
+import {
+  catalogSlotTotal,
+  countJudgedInCatalog,
+  firstUndecidedInCatalog,
+  listCatalogWorks,
+} from "@/lib/worksCatalog";
 
 export default function HomePage() {
+  const router = useRouter();
   const { judgments, mounted } = useJudgments();
-  const judged = mounted ? Object.values(judgments).filter((v) => v !== "undecided").length : 0;
-  const authentic = mounted ? Object.values(judgments).filter((v) => v === "authentic").length : 0;
-  const pct = Math.round((judged / 20) * 100);
-  const scanPct = mounted ? ((judged / 20) * 100).toFixed(1) : null;
+  const { secretUnlocked, secretMounted, tryUnlockWithPhrase } = useSecretCaseUnlock();
+  const { name: operatorName, setName: setOperatorName, commitName: commitOperatorName, mounted: operatorMounted } =
+    useOperatorName();
+
+  const catalog = listCatalogWorks(secretMounted && secretUnlocked);
+  const slotTotal = catalogSlotTotal(secretMounted && secretUnlocked);
+  const judged = mounted ? countJudgedInCatalog(catalog, judgments) : 0;
+  const authentic = mounted
+    ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "authentic").length
+    : 0;
+  const fake = mounted ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "fake").length : 0;
+  const pending = mounted ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "pending").length : 0;
+  const pct = Math.round((judged / slotTotal) * 100);
+  const scanPct = mounted ? ((judged / slotTotal) * 100).toFixed(1) : null;
+  const nextWork = mounted ? firstUndecidedInCatalog(judgments, catalog) : null;
+  const remaining = slotTotal - judged;
+
+  const [keywordDraft, setKeywordDraft] = useState("");
+  const [keywordHint, setKeywordHint] = useState<"idle" | "ok" | "fail">("idle");
+
+  useEffect(() => {
+    if (keywordHint === "fail") {
+      const t = window.setTimeout(() => setKeywordHint("idle"), 2400);
+      return () => window.clearTimeout(t);
+    }
+  }, [keywordHint]);
+
+  const onKeywordSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      const raw = keywordDraft.trim();
+      if (!raw) return;
+      if (tryUnlockWithPhrase(raw)) {
+        setKeywordHint("ok");
+        setKeywordDraft("");
+        router.push("/works/21");
+        return;
+      }
+      setKeywordHint("fail");
+    },
+    [keywordDraft, tryUnlockWithPhrase, router]
+  );
+  const callsign =
+    operatorMounted && operatorName.trim() ? operatorName.trim() : null;
 
   return (
     <main className="relative mx-auto flex min-h-0 max-w-lg flex-1 flex-col gap-4 px-5 py-4 md:max-w-4xl md:grid md:grid-cols-12 md:gap-8 md:py-10">
@@ -23,6 +76,15 @@ export default function HomePage() {
           <p className="hidden font-display text-xs font-bold tracking-[0.2em] text-[color:var(--fg-muted)] md:block">
             THE_DIGITAL_ARCHIVE_OF_TRUTH
           </p>
+          {operatorMounted ? (
+            <p className="font-mono text-[0.65rem] leading-relaxed tracking-wide text-[color:var(--fg-muted)] md:text-xs">
+              <span className="text-[color:var(--primary)]/90">OPERATOR</span>
+              <span className="mx-1.5 text-[color:var(--hairline)]">::</span>
+              <span className="text-[color:var(--secondary)]">{callsign ?? "NO_CALLSIGN"}</span>
+              <span className="mx-1.5 text-[color:var(--hairline)]">·</span>
+              <span className="tabular-nums">QUEUE {mounted ? remaining : "—"}</span>
+            </p>
+          ) : null}
         </div>
 
         <div className="relative overflow-hidden border border-[color:var(--surface-high)]/30">
@@ -49,6 +111,103 @@ export default function HomePage() {
       </section>
 
       <aside className="flex min-h-0 flex-1 flex-col gap-3 md:col-span-5 md:justify-center md:gap-6">
+        <div className="border border-[color:var(--surface-high)]/35 bg-[color:var(--surface-low)]/80 p-4 md:p-5">
+          <label htmlFor="operator-callsign" className="mb-2 block text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+            鑑定士呼称
+          </label>
+          <input
+            id="operator-callsign"
+            name="operator"
+            type="text"
+            autoComplete="nickname"
+            placeholder="呼び出し名（任意）"
+            value={operatorName}
+            onChange={(e) => setOperatorName(e.target.value.slice(0, OPERATOR_NAME_MAX_LEN))}
+            onBlur={() => commitOperatorName(operatorName)}
+            className="w-full border border-[color:var(--hairline)]/50 bg-[color:var(--bg)] px-3 py-2.5 font-mono text-sm text-[color:var(--secondary)] outline-none transition-[border-color,box-shadow] placeholder:text-[color:var(--fg-muted)]/70 focus:border-[color:var(--primary)]/55 focus:shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent)]"
+          />
+          <p className="mt-2 text-[0.6rem] leading-relaxed text-[color:var(--fg-muted)]">
+            端末内のみに保存。記録タブのヘッダにも表示されます。
+          </p>
+        </div>
+
+        {mounted && nextWork ? (
+          <Link
+            href={`/works/${nextWork.id}`}
+            className="group border-l-2 border-[color:var(--tertiary)]/60 bg-[color:var(--surface-low)]/60 px-4 py-3 transition-colors hover:border-[color:var(--tertiary)] md:px-5 md:py-4"
+          >
+            <p className="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">Next case</p>
+            <p className="mt-1 font-display text-lg font-bold tracking-tight text-[color:var(--tertiary)] md:text-xl">
+              {nextWork.caseName}
+            </p>
+            <p className="mt-0.5 text-xs text-[color:var(--secondary)]">{nextWork.title}</p>
+            <p className="mt-2 inline-flex items-center gap-1 font-mono text-[0.65rem] text-[color:var(--primary)]">
+              この枠から再開
+              <span className="material-symbols-outlined text-base transition-transform group-hover:translate-x-0.5" style={{ fontVariationSettings: "'FILL' 0" }}>
+                chevron_right
+              </span>
+            </p>
+          </Link>
+        ) : null}
+
+        {mounted && judged === slotTotal && slotTotal > 0 ? (
+          <Link
+            href="/summary"
+            className="border-l-2 border-[color:var(--primary)]/50 bg-[color:var(--surface-low)]/60 px-4 py-3 md:px-5 md:py-4"
+          >
+            <p className="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">Archive</p>
+            <p className="mt-1 font-display text-base font-bold text-[color:var(--primary)]">
+              全{slotTotal}枠 鑑定完了
+            </p>
+            <p className="mt-1 font-mono text-[0.65rem] text-[color:var(--secondary)]">記録タブで一覧を確認できます。</p>
+          </Link>
+        ) : null}
+
+        {hasSecretKeywordFeature() ? (
+          <form
+            onSubmit={onKeywordSubmit}
+            className="border border-[color:var(--surface-high)]/40 bg-[color:var(--surface-low)]/70 p-4 md:p-5"
+          >
+            <label htmlFor="terminal-keyword" className="mb-2 block text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
+              端末キーワード
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="terminal-keyword"
+                name="keyword"
+                type="text"
+                autoComplete="off"
+                placeholder="認証フレーズ"
+                value={keywordDraft}
+                onChange={(e) => {
+                  setKeywordDraft(e.target.value);
+                  if (keywordHint !== "idle") setKeywordHint("idle");
+                }}
+                className="min-w-0 flex-1 border border-[color:var(--hairline)]/50 bg-[color:var(--bg)] px-3 py-2.5 font-mono text-sm text-[color:var(--secondary)] outline-none transition-[border-color,box-shadow] placeholder:text-[color:var(--fg-muted)]/70 focus:border-[color:var(--tertiary)]/50 focus:shadow-[0_0_0_1px_color-mix(in_srgb,var(--tertiary)_30%,transparent)]"
+              />
+              <button
+                type="submit"
+                className="shrink-0 border border-[color:var(--tertiary)]/45 bg-[color:var(--tertiary)]/10 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-wider text-[color:var(--tertiary)] transition-colors hover:bg-[color:var(--tertiary)]/18"
+              >
+                送信
+              </button>
+            </div>
+            {secretMounted && secretUnlocked ? (
+              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]">拡張鑑定枠 ACTIVE（21枠）</p>
+            ) : null}
+            {keywordHint === "ok" ? (
+              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]" role="status">
+                CLEARANCE_ACCEPTED
+              </p>
+            ) : null}
+            {keywordHint === "fail" ? (
+              <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--error)]" role="status">
+                CLEARANCE_DENIED
+              </p>
+            ) : null}
+          </form>
+        ) : null}
+
         <div className="border-l-2 border-[color:var(--primary)] bg-[color:var(--surface-low)] p-4 md:p-6">
           <div className="mb-3 flex items-end justify-between md:mb-4">
             <div className="flex flex-col">
@@ -56,7 +215,7 @@ export default function HomePage() {
               <div className="flex items-baseline gap-1">
                 <span className="font-display text-3xl font-bold tabular-nums md:text-4xl">{mounted ? judged : "—"}</span>
                 <span className="text-xs md:text-sm" style={{ color: "var(--fg-muted)" }}>
-                  / 20
+                  / {slotTotal}
                 </span>
               </div>
             </div>
@@ -69,7 +228,11 @@ export default function HomePage() {
               <>
                 進捗 <span className="text-[color:var(--secondary)]">{scanPct}%</span>
                 <span className="mx-2 text-[color:var(--hairline)]">·</span>
-                本物 <span className="text-[color:var(--primary)]">{authentic}</span> 点
+                本物 <span className="text-[color:var(--primary)]">{authentic}</span>
+                <span className="mx-2 text-[color:var(--hairline)]">·</span>
+                偽物 <span className="text-[color:var(--error)]">{fake}</span>
+                <span className="mx-2 text-[color:var(--hairline)]">·</span>
+                保留 <span className="text-[color:var(--tertiary)]">{pending}</span>
               </>
             ) : (
               "—"
