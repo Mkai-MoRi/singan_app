@@ -1,68 +1,116 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0a0a0a;
-  --bg-2: #111111;
-  --fg: #ddd8d0;
-  --fg-muted: #666660;
-  --line: #242424;
-  --accent: #d16b8d;
-  --accent-dim: #8a3f5a;
+  /* DESIGN.md color tokens */
+  --bg:            #131313;
+  --surface-low:   #1c1b1b;
+  --surface-high:  #2a2a2a;
+  --primary:       #ffb0c9;   /* bright magenta — headers, accents */
+  --primary-bright:#ffd8e2;   /* CRT / gradient high */
+  --on-primary:    #650034;   /* text on primary surfaces */
+  --secondary:     #ddbfc8;   /* muted pink — body text */
+  --tertiary:      #5be147;   /* tertiary — system normal / 偽物判定 */
+  --error:         #ffb4ab;   /* 本物ハイライト / アラート */
+  /* On-surface-variant: secondary をベースに void へ沈めた注釈色 */
+  --fg-muted:      color-mix(in srgb, var(--secondary) 36%, var(--bg));
+  --hairline:      #ffb0c9;   /* signature pink hairline */
+  --outline-variant: #ddbfc8; /* ghost border 用（不透明度で使用） */
 }
 
 @theme inline {
   --color-background: var(--bg);
-  --color-foreground: var(--fg);
-  --font-mono: var(--font-geist-mono);
+  --color-foreground: var(--secondary);
+  --font-display: var(--font-space-grotesk);
+  --font-mono:    var(--font-space-mono);
 }
 
-html,
-body {
+html, body {
   background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-geist-mono), "JetBrains Mono", "IBM Plex Mono",
-    monospace;
+  color: var(--secondary);
+  font-family: var(--font-space-mono), "Space Mono", monospace;
   -webkit-font-smoothing: antialiased;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-/* Noise overlay */
+::selection {
+  background: color-mix(in srgb, var(--tertiary) 28%, var(--surface-high));
+  color: var(--secondary);
+}
+
+:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--tertiary) 50%, transparent);
+  outline-offset: 2px;
+}
+
+/* ---- Noise overlay (3–4 % opacity per DESIGN.md) ---- */
 .noise-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.04;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 200px 200px;
 }
 
-/* Accent border utility */
-.border-accent {
-  border-color: var(--accent);
+/* ---- Signature pink hairline ---- */
+.hairline { border-color: var(--hairline); }
+
+/* ---- Status colors ---- */
+.status-authentic { color: var(--primary); }
+.status-fake      { color: var(--tertiary); }
+.status-pending   { color: var(--secondary); }
+.status-undecided { color: var(--fg-muted); }
+
+/* ---- Display font utility ---- */
+.font-display {
+  font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
 }
 
-/* Status colors */
-.status-authentic {
-  color: #6aaf7a;
-}
-.status-fake {
-  color: var(--accent);
-}
-.status-pending {
-  color: #8888aa;
-}
-.status-undecided {
-  color: var(--fg-muted);
-}
-
-/* Scrollbar minimal */
-::-webkit-scrollbar {
-  width: 2px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: color-mix(in srgb, var(--surface-high) 88%, var(--tertiary) 12%);
+}
+
+/* ---- Primary button glow (hover) ---- */
+.btn-primary:hover {
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--primary) 28%, transparent),
+    0 0 36px color-mix(in srgb, var(--tertiary) 12%, transparent);
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  display: inline-block;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+.glitch-text {
+  text-shadow:
+    2px 0 color-mix(in srgb, var(--primary) 35%, transparent),
+    -1px 0 color-mix(in srgb, var(--tertiary) 28%, transparent);
+}
+
+.crt-glow {
+  text-shadow: 0 0 10px rgba(255, 176, 201, 0.35);
+}
+
+.grid-backdrop {
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--primary) 12%, transparent) 1px, transparent 0),
+    radial-gradient(color-mix(in srgb, var(--tertiary) 8%, transparent) 1px, transparent 0);
+  background-size: 20px 20px, 22px 22px;
+  background-position: 0 0, 11px 7px;
 }
