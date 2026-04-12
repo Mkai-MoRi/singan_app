@@ -628,3 +628,88 @@ html, body {
     transform: translate(-50%, -50%) scale(1);
   }
 }
+
+/* ---- Phase unlock flash（真贋鑑定オーバーレイ直後） ---- */
+.phase-unlock-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--bg) 58%, rgba(0, 0, 0, 0.82));
+  animation: phase-unlock-backdrop 0.38s ease-out both;
+}
+
+.phase-unlock-card {
+  position: relative;
+  max-width: min(22rem, 100%);
+  border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--hairline));
+  background: color-mix(in srgb, var(--surface-low) 88%, var(--bg));
+  padding: 1.75rem 1.5rem 1.5rem;
+  text-align: center;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tertiary) 12%, transparent),
+    0 24px 64px -20px color-mix(in srgb, var(--primary) 22%, transparent);
+  animation: phase-unlock-rise 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+}
+
+.phase-unlock-eyebrow {
+  margin-bottom: 0.65rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.26em;
+  color: var(--tertiary);
+}
+
+.phase-unlock-title {
+  font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+  font-size: clamp(1.35rem, 5.5vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--primary-bright);
+  text-shadow: 0 0 40px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.phase-unlock-sub {
+  margin-top: 0.75rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.18em;
+  color: var(--fg-muted);
+}
+
+@keyframes phase-unlock-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes phase-unlock-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-unlock-root,
+  .phase-unlock-card {
+    animation: none !important;
+  }
+
+  .phase-unlock-root {
+    opacity: 1;
+  }
+
+  .phase-unlock-card {
+    opacity: 1;
+    transform: none;
+  }
+}

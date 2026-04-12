@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useJudgments } from "@/hooks/useJudgments";
@@ -15,6 +16,22 @@ import { clearWorksReturnSwipe, peekWorksReturnSwipe } from "@/lib/worksReturnSw
 import AuthenticityTruthInline from "@/components/AuthenticityTruthInline";
 import PhaseRevealOverlay, { type PhaseRevealKind } from "@/components/PhaseRevealOverlay";
 import { isCoreCatalogComplete, isCorePhase1Complete, isCorePhase2Complete } from "@/lib/workPhases";
+
+function phaseUnlockHeading(kind: PhaseRevealKind): string {
+  switch (kind) {
+    case "afterPhase1":
+      return "第2段階解禁";
+    case "afterPhase2":
+      return "第3段階解禁";
+    default:
+      return "全段階 解禁";
+  }
+}
+
+function phaseUnlockScrollTargetId(kind: PhaseRevealKind): string {
+  if (kind === "afterPhase1") return "works-appraisal-phase-2";
+  return "works-appraisal-phase-3";
+}
 
 const STATUS_LABEL: Record<Judgment, string> = {
   undecided: "NULL",
@@ -104,6 +121,7 @@ export default function WorksPageClient() {
   const { practiceUnlocked, practiceMounted } = usePracticeCaseUnlock();
   const [shareHint, setShareHint] = useState<"idle" | "ok" | "err">("idle");
   const [phaseReveal, setPhaseReveal] = useState<PhaseRevealKind | null>(null);
+  const [phaseUnlock, setPhaseUnlock] = useState<PhaseRevealKind | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
@@ -132,6 +150,32 @@ export default function WorksPageClient() {
       el?.classList.remove(cls);
     };
   }, []);
+
+  const handlePhaseRevealComplete = useCallback(() => {
+    setPhaseReveal((prev) => {
+      if (prev) queueMicrotask(() => setPhaseUnlock(prev));
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!phaseUnlock || typeof document === "undefined") return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const scrollDelayMs = reduced ? 280 : 640;
+    const clearDelayMs = reduced ? 1100 : 1850;
+    const targetId = phaseUnlockScrollTargetId(phaseUnlock);
+    const scrollTimer = window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: reduced ? "auto" : "smooth",
+        block: "start",
+      });
+    }, scrollDelayMs);
+    const clearTimer = window.setTimeout(() => setPhaseUnlock(null), clearDelayMs);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [phaseUnlock]);
 
   const catalog = listCatalogWorks({
     secretUnlocked: !!(secretMounted && secretUnlocked),
@@ -290,7 +334,10 @@ export default function WorksPageClient() {
             </div>
           ) : null}
 
-          <div className="space-y-2 pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]">
+          <div
+            id="works-appraisal-phase-1"
+            className="scroll-mt-3 space-y-2 scroll-mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]"
+          >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="font-display text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[color:var(--primary)]">
                 第1段階
@@ -313,7 +360,10 @@ export default function WorksPageClient() {
           </div>
 
           {phase1Done ? (
-            <div className="space-y-2 pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]">
+            <div
+              id="works-appraisal-phase-2"
+              className="scroll-mt-3 space-y-2 scroll-mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]"
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-display text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[color:var(--primary)]">
                   第2段階
@@ -337,7 +387,10 @@ export default function WorksPageClient() {
           ) : null}
 
           {phase2Done ? (
-            <div className="space-y-2 pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]">
+            <div
+              id="works-appraisal-phase-3"
+              className="scroll-mt-3 space-y-2 scroll-mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pl-[max(0.35rem,env(safe-area-inset-left))] pr-[max(0.35rem,env(safe-area-inset-right))]"
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-display text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[color:var(--primary)]">
                   第3段階
@@ -379,12 +432,21 @@ export default function WorksPageClient() {
       </section>
 
       {phaseReveal ? (
-        <PhaseRevealOverlay
-          kind={phaseReveal}
-          judgments={judgments}
-          onComplete={() => setPhaseReveal(null)}
-        />
+        <PhaseRevealOverlay kind={phaseReveal} judgments={judgments} onComplete={handlePhaseRevealComplete} />
       ) : null}
+
+      {phaseUnlock && typeof document !== "undefined"
+        ? createPortal(
+            <div className="phase-unlock-root normal-case" role="status" aria-live="assertive">
+              <div className="phase-unlock-card">
+                <p className="phase-unlock-eyebrow font-mono uppercase">Ledger · Phase unlock</p>
+                <p className="phase-unlock-title">{phaseUnlockHeading(phaseUnlock)}</p>
+                <p className="phase-unlock-sub font-mono uppercase">一覧へ移動しています…</p>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </main>
   );
 }
