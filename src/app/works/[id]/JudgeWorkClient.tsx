@@ -14,7 +14,7 @@ import {
 } from "@/lib/workPhases";
 import { Judgment } from "@/lib/judgmentsStorage";
 import { setTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
-import { setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
+import { clearWorksReturnSwipe, setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
 const SWIPE_THRESHOLD = 88;
 
@@ -79,6 +79,7 @@ export default function JudgeWorkClient({ id }: { id: number }) {
       let worksHref = "/works";
       if (id === 0) {
         setTutorialRevealIntent();
+        clearWorksReturnSwipe();
       }
       if (id >= 1 && id <= 20) {
         if (!isCorePhase1Complete(judgments) && isCorePhase1Complete(nextRecord)) {
@@ -96,9 +97,14 @@ export default function JudgeWorkClient({ id }: { id: number }) {
       dragXRef.current = 0;
       setDragX(0);
       if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-      setFlyDir(dir);
-      setWorksReturnSwipe(dir);
-      const resetMs = dir === "pending" ? 240 : 380;
+      /* CASE_00: 一覧へのスワイプ入場は使わず、カードだけフェードアウトして遷移 */
+      const exitDir = id === 0 ? "pending" : dir;
+      setFlyDir(exitDir);
+      if (id !== 0) {
+        setWorksReturnSwipe(dir);
+      }
+      const resetMs =
+        id === 0 ? 460 : dir === "pending" ? 240 : 380;
       commitTimerRef.current = setTimeout(() => {
         commitTimerRef.current = null;
         setFlyDir(null);
@@ -250,9 +256,13 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   const choiceBtn =
     "flex h-12 items-center justify-center rounded-lg border border-[color:var(--surface-high)]/55 bg-[color:var(--surface-high)]/70 text-[0.7rem] font-bold transition-all duration-75 active:scale-[0.98]";
 
+  const tutorialFadeOut = id === 0 && flyDir === "pending";
+
   return (
     <main
-      className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 select-none flex-col px-3 pb-2 pt-2"
+      className={`relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 select-none flex-col px-3 pb-2 pt-2 transition-opacity duration-500 ease-out ${
+        tutorialFadeOut ? "opacity-0" : "opacity-100"
+      }`}
       style={{ overscrollBehaviorX: "none" } as CSSProperties}
     >
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.1]" aria-hidden>

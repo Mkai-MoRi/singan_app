@@ -46,6 +46,7 @@ const STATUS_LABEL: Record<Judgment, string> = {
 /**
  * グリッドセル `animation-delay`（秒）と同期 — 変更時は `globals.css`
  * `.works-catalog-reveal-play .works-core-phase:nth-child(n) .grid > *` も合わせる。
+ * チュートリアル直後は `.works-tutorial-lineup` でセルは `works-catalog-cell-lineup` に切替。
  */
 const WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS = [
   80, 110, 140, 170, 200, 230,
@@ -238,9 +239,20 @@ export default function WorksPageClient() {
         });
         return;
       }
+      let fadeClearTid: number | null = null;
+      let mainForFadeCleanup: HTMLElement | null = null;
       queueMicrotask(() => {
         setGridRevealComplete(false);
         setPlayGridReveal(true);
+        const mainEl = mainRef.current;
+        mainForFadeCleanup = mainEl;
+        if (mainEl) {
+          mainEl.classList.add("works-main-tutorial-fade-in");
+          fadeClearTid = window.setTimeout(() => {
+            mainEl.classList.remove("works-main-tutorial-fade-in");
+            fadeClearTid = null;
+          }, 520);
+        }
       });
       const tid = window.setTimeout(() => {
         setPlayGridReveal(false);
@@ -248,7 +260,10 @@ export default function WorksPageClient() {
       }, 1680);
       return () => {
         window.clearTimeout(tid);
+        if (fadeClearTid !== null) window.clearTimeout(fadeClearTid);
+        const el = mainForFadeCleanup;
         queueMicrotask(() => {
+          el?.classList.remove("works-main-tutorial-fade-in");
           setPlayGridReveal(false);
           setGridRevealComplete(true);
         });
@@ -508,7 +523,7 @@ export default function WorksPageClient() {
 
               <div
                 ref={worksCoreCatalogRootRef}
-                className={`works-core-catalog-root normal-case ${playGridReveal ? "works-catalog-reveal-play" : ""} ${gridRevealComplete ? "works-core-catalog-synced" : ""}`}
+                className={`works-core-catalog-root normal-case ${playGridReveal ? "works-catalog-reveal-play works-tutorial-lineup" : ""} ${gridRevealComplete ? "works-core-catalog-synced" : ""}`}
               >
           <div
             id="works-appraisal-phase-1"
