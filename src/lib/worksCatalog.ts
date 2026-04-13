@@ -9,7 +9,7 @@ export type CatalogUnlockFlags = {
 };
 
 export function listCatalogWorks(flags: CatalogUnlockFlags): readonly Work[] {
-  const practice = flags.practiceUnlocked ? [PRACTICE_WORK] : [];
+  const practice = [PRACTICE_WORK];
   const core = [...WORKS];
   const secret = flags.secretUnlocked ? [SECRET_WORK] : [];
   return [...practice, ...core, ...secret];

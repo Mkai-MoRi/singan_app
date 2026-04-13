@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef } from "react";
+import { WebHaptics } from "web-haptics";
 import type { JudgmentRecord } from "@/lib/judgmentsStorage";
 import { scoreTruthRange } from "@/lib/dummyAppraisalTruth";
 
@@ -31,6 +32,48 @@ function scoreBoundsForReveal(kind: PhaseRevealKind): { min: number; max: number
     default:
       return { min: 16, max: 20 };
   }
+}
+
+/**
+ * CSS の段階アニメに合わせたハプティクス。
+ * Android 等は `navigator.vibrate`、iOS Safari は `web-haptics` の switch フォールバック
+ *（https://azukiazusa.dev/blog/ios-safari-web-haptics/ 参照）。
+ */
+function startPhaseRevealHapticsSequence(): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const haptics = new WebHaptics({ showSwitch: false });
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const intensity = reduced ? 0.42 : 0.62;
+  const ids: number[] = [];
+
+  const q = (ms: number, pattern: number | number[]) => {
+    ids.push(
+      window.setTimeout(() => {
+        void haptics.trigger(pattern, { intensity });
+      }, ms)
+    );
+  };
+
+  if (reduced) {
+    q(0, [28, 52, 28]);
+    q(420, 36);
+    q(780, 20);
+  } else {
+    q(0, [40, 72, 24, 58, 32]);
+    q(360, 14);
+    q(780, 52);
+    q(920, [18, 34, 18]);
+    q(1120, [12, 28, 12]);
+    q(2000, [14, 40, 14]);
+    q(2720, [10, 22, 10]);
+  }
+
+  return () => {
+    for (const id of ids) window.clearTimeout(id);
+    haptics.cancel();
+    haptics.destroy();
+  };
 }
 
 type PhaseRevealOverlayProps = {
@@ -67,6 +110,11 @@ export default function PhaseRevealOverlay({ kind, judgments, onComplete }: Phas
     };
   }, []);
 
+  useEffect(() => {
+    const stopHaptics = startPhaseRevealHapticsSequence();
+    return stopHaptics;
+  }, []);
+
   if (typeof document === "undefined") return null;
 
   const node = (
@@ -81,9 +129,10 @@ export default function PhaseRevealOverlay({ kind, judgments, onComplete }: Phas
       <div className="phase-reveal-scanbeam" aria-hidden />
       <div className="phase-reveal-grid" aria-hidden />
       <div className="phase-reveal-noise" aria-hidden />
+      <div className="phase-reveal-rim" aria-hidden />
 
       <div className="phase-reveal-content">
-        <p id="phase-reveal-desc" className="phase-reveal-pretag font-mono text-[0.58rem] tracking-[0.28em] text-[color:var(--tertiary)]">
+        <p id="phase-reveal-desc" className="phase-reveal-pretag font-mono text-[color:var(--tertiary)]">
           {meta.tag}
         </p>
 
@@ -91,6 +140,7 @@ export default function PhaseRevealOverlay({ kind, judgments, onComplete }: Phas
           <span className="phase-reveal-kanji phase-reveal-title-a">真贋</span>
           <span className="phase-reveal-kanji phase-reveal-title-b">鑑定</span>
         </h1>
+        <div className="phase-reveal-title-rule" aria-hidden />
 
         <div className="phase-reveal-hit-panel" aria-live="polite">
           <div className="phase-reveal-hit-glow" aria-hidden />
@@ -108,10 +158,10 @@ export default function PhaseRevealOverlay({ kind, judgments, onComplete }: Phas
         <div className="phase-reveal-divider" aria-hidden />
 
         <div className="phase-reveal-result-block">
-          <p className="phase-reveal-flicker font-mono text-[0.62rem] tracking-[0.12em] text-[color:var(--primary-bright)]">
+          <p className="phase-reveal-flicker phase-reveal-result-line font-mono text-[color:var(--primary-bright)]">
             {meta.resultLine}
           </p>
-          <p className="mt-3 font-mono text-[0.52rem] tracking-widest text-[color:var(--fg-muted)]">
+          <p className="phase-reveal-sync-line font-mono text-[color:var(--fg-muted)]">
             真贋レポートを同期しています…
           </p>
           <div className="phase-reveal-progress" aria-hidden>
@@ -121,7 +171,7 @@ export default function PhaseRevealOverlay({ kind, judgments, onComplete }: Phas
 
         <button
           type="button"
-          className="phase-reveal-skip font-mono text-[0.52rem] tracking-[0.2em] text-[color:var(--fg-muted)]"
+          className="phase-reveal-skip font-mono text-[color:var(--fg-muted)]"
           onClick={finish}
         >
           SKIP

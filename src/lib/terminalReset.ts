@@ -1,3 +1,4 @@
+import { clearAppraisalSessionStorage } from "@/lib/appraisalSessionConfig";
 import { clearJudgments } from "@/lib/judgmentsStorage";
 import { saveOperatorName } from "@/lib/operatorStorage";
 import { savePracticeCaseUnlocked } from "@/lib/practiceCaseStorage";
@@ -23,6 +24,7 @@ function stripJudgmentsShareParam(): void {
 export function resetTerminal(): void {
   if (typeof window === "undefined") return;
   clearJudgments();
+  clearAppraisalSessionStorage();
   saveOperatorName("");
   saveSecretCaseUnlocked(false);
   savePracticeCaseUnlocked(false);
