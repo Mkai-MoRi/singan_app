@@ -13,6 +13,7 @@ import {
   isCorePhase2Complete,
 } from "@/lib/workPhases";
 import { Judgment } from "@/lib/judgmentsStorage";
+import { primeWorksCatalogRevealFeedbackAudio } from "@/lib/worksCatalogRevealFeedback";
 import { setTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
 import { clearWorksReturnSwipe, setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
@@ -78,6 +79,7 @@ export default function JudgeWorkClient({ id }: { id: number }) {
       const nextRecord = { ...judgments, [id]: value };
       let worksHref = "/works";
       if (id === 0) {
+        primeWorksCatalogRevealFeedbackAudio();
         setTutorialRevealIntent();
         clearWorksReturnSwipe();
       }

@@ -1133,7 +1133,7 @@ html, body {
 }
 
 /* 第1→2→3→拡張へ連続するウェーブ（各段の .grid 内の並びに追随）
-   遅延を変えたら works-page-client の WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS も同期 */
+   遅延を変えたら `src/lib/worksCatalogRevealFeedback.ts` の WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS も同期 */
 .works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(1) {
   animation-delay: 0.08s;
 }

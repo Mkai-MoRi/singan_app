@@ -4,7 +4,6 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { WebHaptics } from "web-haptics";
 import AppraisalSessionHud from "@/components/AppraisalSessionHud";
 import AuthenticityTruthInline from "@/components/AuthenticityTruthInline";
 import PhaseRevealOverlay, { type PhaseRevealKind } from "@/components/PhaseRevealOverlay";
@@ -18,6 +17,7 @@ import { buildSummaryShareAbsoluteUrl } from "@/lib/judgmentsUrlCodec";
 import { consumeTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
 import { countJudgedInCatalog, listCatalogWorks } from "@/lib/worksCatalog";
 import { clearWorksReturnSwipe, peekWorksReturnSwipe } from "@/lib/worksReturnSwipe";
+import { runWorksCatalogRevealFeedback } from "@/lib/worksCatalogRevealFeedback";
 import { isCoreCatalogComplete, isCorePhase1Complete, isCorePhase2Complete } from "@/lib/workPhases";
 
 function phaseUnlockHeading(kind: PhaseRevealKind): string {
@@ -42,29 +42,6 @@ const STATUS_LABEL: Record<Judgment, string> = {
   fake: "FAKE",
   pending: "HOLD",
 };
-
-/**
- * グリッドセル `animation-delay`（秒）と同期 — 変更時は `globals.css`
- * `.works-catalog-reveal-play .works-core-phase:nth-child(n) .grid > *` も合わせる。
- * チュートリアル直後は `.works-tutorial-lineup` でセルは `works-catalog-cell-lineup` に切替。
- */
-const WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS = [
-  80, 110, 140, 170, 200, 230,
-  270, 300, 330, 360, 390, 420, 450, 480, 510, 540, 570, 600,
-  640, 670, 700, 730, 760, 790,
-  830, 860,
-] as const;
-
-function buildWorksCatalogRevealVibrationPattern(): number[] {
-  const pulseMs = 16;
-  const times = WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS;
-  const pattern: number[] = [0, times[0]!, pulseMs];
-  for (let i = 1; i < times.length; i++) {
-    const gap = Math.max(6, times[i]! - times[i - 1]! - pulseMs);
-    pattern.push(gap, pulseMs);
-  }
-  return pattern;
-}
 
 const GRID_LEGEND = [
   { key: "auth", label: "AUTH", bar: "var(--primary)" as const },
@@ -325,25 +302,11 @@ export default function WorksPageClient() {
     };
   }, [playGridReveal]);
 
-  /**
-   * セル出現ウェーブに合わせた触覚。
-   * `navigator.vibrate` が使える環境では従来どおり、iOS Safari は `web-haptics` の switch フォールバック。
-   */
+  /** セル出現ウェーブ — Android は振動、iPhone Web はチュートリアル確定時に prime した Audio のクリック列 */
   useEffect(() => {
     if (!playGridReveal || typeof window === "undefined") return undefined;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-
-    const haptics = new WebHaptics({ showSwitch: false });
-    const pattern = buildWorksCatalogRevealVibrationPattern();
-    const tid = window.setTimeout(() => {
-      void haptics.trigger(pattern, { intensity: 0.52 });
-    }, 0);
-
-    return () => {
-      window.clearTimeout(tid);
-      haptics.cancel();
-      haptics.destroy();
-    };
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return runWorksCatalogRevealFeedback({ reducedMotion: reduced });
   }, [playGridReveal]);
 
   useLayoutEffect(() => {
