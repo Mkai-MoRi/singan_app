@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useJudgments } from "@/hooks/useJudgments";
-import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
 import { useSecretCaseUnlock } from "@/hooks/useSecretCaseUnlock";
 import { findCatalogWork, listCatalogWorks } from "@/lib/worksCatalog";
 import {
@@ -14,6 +13,7 @@ import {
   isCorePhase2Complete,
 } from "@/lib/workPhases";
 import { Judgment } from "@/lib/judgmentsStorage";
+import { setTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
 import { setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
 const SWIPE_THRESHOLD = 88;
@@ -22,10 +22,9 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   const router = useRouter();
   const { judgments, saveJudgment, mounted } = useJudgments();
   const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
-  const { practiceUnlocked, practiceMounted } = usePracticeCaseUnlock();
   const catalogFlags = {
     secretUnlocked: secretMounted && secretUnlocked,
-    practiceUnlocked: practiceMounted && practiceUnlocked,
+    practiceUnlocked: false,
   };
   const catalog = listCatalogWorks(catalogFlags);
   const slotTotal = catalog.length;
@@ -43,9 +42,8 @@ export default function JudgeWorkClient({ id }: { id: number }) {
 
   useEffect(() => {
     if (id === 21 && !secretMounted) return;
-    if (id === 0 && !practiceMounted) return;
     if (!work) router.replace("/works");
-  }, [id, secretMounted, practiceMounted, work, router]);
+  }, [id, secretMounted, work, router]);
 
   useEffect(() => {
     if (!mounted || !work) return;
@@ -79,6 +77,9 @@ export default function JudgeWorkClient({ id }: { id: number }) {
       saveJudgment(id, value);
       const nextRecord = { ...judgments, [id]: value };
       let worksHref = "/works";
+      if (id === 0) {
+        setTutorialRevealIntent();
+      }
       if (id >= 1 && id <= 20) {
         if (!isCorePhase1Complete(judgments) && isCorePhase1Complete(nextRecord)) {
           worksHref = "/works?reveal=afterPhase1";
@@ -172,14 +173,6 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   }, []);
 
   if (id === 21 && !secretMounted) {
-    return (
-      <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
-        <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">[SYNC_SESSION]</p>
-      </main>
-    );
-  }
-
-  if (id === 0 && !practiceMounted) {
     return (
       <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
         <p className="font-mono text-[0.65rem] tracking-wide text-[color:var(--fg-muted)]">[SYNC_SESSION]</p>

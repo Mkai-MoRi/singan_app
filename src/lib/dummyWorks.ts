@@ -32,8 +32,8 @@ export const WORKS: Work[] = [
 export const PRACTICE_WORK: Work = {
   id: 0,
   caseName: "CASE_00",
-  title: "練習問題",
-  meta: "操作トレーニング / 本番枠（01–20）と独立",
+  title: "チュートリアル問題",
+  meta: "操作トレーニング / CASE 01 に先行",
 };
 
 /** キーワード解禁後のみカタログに載る拡張枠（id 21） */

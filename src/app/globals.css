@@ -177,12 +177,14 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(
-    ellipse 85% 70% at 50% 38%,
-    color-mix(in srgb, var(--primary) 14%, var(--bg)) 0%,
-    var(--bg) 62%,
-    #050505 100%
-  );
+  background:
+    radial-gradient(ellipse 55% 45% at 50% 22%, color-mix(in srgb, var(--tertiary) 12%, transparent) 0%, transparent 55%),
+    radial-gradient(
+      ellipse 88% 72% at 50% 36%,
+      color-mix(in srgb, var(--primary) 22%, var(--bg)) 0%,
+      var(--bg) 52%,
+      #030303 100%
+    );
   animation: phase-reveal-root-pulse 2.4s ease-in-out infinite alternate;
 }
 
@@ -251,25 +253,80 @@ html, body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.07;
+  opacity: 0.09;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='pn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23pn)' opacity='1'/%3E%3C/svg%3E");
   background-size: 200px 200px;
   mix-blend-mode: overlay;
+}
+
+.phase-reveal-rim {
+  position: absolute;
+  inset: 6%;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  opacity: 0.22;
+  box-shadow:
+    0 0 80px -20px color-mix(in srgb, var(--primary) 35%, transparent),
+    inset 0 0 60px -30px color-mix(in srgb, var(--tertiary) 18%, transparent);
+  animation: phase-reveal-rim-drift 4.5s ease-in-out infinite alternate;
+  mask-image: radial-gradient(ellipse 72% 68% at 50% 48%, black 0%, transparent 78%);
+}
+
+@keyframes phase-reveal-rim-drift {
+  from {
+    opacity: 0.16;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 0.32;
+    transform: scale(1.01);
+  }
 }
 
 .phase-reveal-content {
   position: relative;
   z-index: 2;
   display: flex;
-  max-width: min(28rem, calc(100vw - 2rem));
+  max-width: min(34rem, calc(100vw - 1.25rem));
   flex-direction: column;
   align-items: center;
-  padding: 2rem 1rem 3.5rem;
+  padding: 2.25rem 1.85rem 4rem;
   text-align: center;
 }
 
+.phase-reveal-content::before,
+.phase-reveal-content::after {
+  content: "";
+  position: absolute;
+  width: min(3.5rem, 12vw);
+  height: min(3.5rem, 12vw);
+  pointer-events: none;
+  opacity: 0.55;
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  border-style: solid;
+}
+
+.phase-reveal-content::before {
+  left: 0;
+  top: 0;
+  border-width: 2px 0 0 2px;
+  box-shadow: -1px -1px 24px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.phase-reveal-content::after {
+  right: 0;
+  bottom: 0;
+  border-width: 0 2px 2px 0;
+  box-shadow: 1px 1px 24px color-mix(in srgb, var(--tertiary) 22%, transparent);
+}
+
 .phase-reveal-pretag {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
+  font-size: clamp(0.68rem, 2.6vw, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  line-height: 1.45;
   opacity: 0;
   animation: phase-reveal-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
 }
@@ -285,14 +342,48 @@ html, body {
   font-family: "Noto Serif JP", ui-serif, Georgia, serif;
   font-weight: 900;
   color: var(--primary-bright);
-  line-height: 1.02;
-  font-size: clamp(3.25rem, 14vw, 6.5rem);
-  letter-spacing: 0.42em;
-  text-indent: 0.42em;
+  line-height: 0.98;
+  font-size: clamp(4.25rem, 19vw, 9.25rem);
+  letter-spacing: 0.36em;
+  text-indent: 0.36em;
   text-shadow:
-    0 0 42px color-mix(in srgb, var(--primary) 45%, transparent),
-    3px 0 color-mix(in srgb, var(--primary) 32%, transparent),
-    -2px 0 color-mix(in srgb, var(--tertiary) 28%, transparent);
+    0 0 64px color-mix(in srgb, var(--primary) 52%, transparent),
+    0 0 120px color-mix(in srgb, var(--tertiary) 18%, transparent),
+    4px 0 0 color-mix(in srgb, var(--primary) 38%, transparent),
+    -3px 0 0 color-mix(in srgb, var(--tertiary) 32%, transparent);
+}
+
+.phase-reveal-title-rule {
+  margin-top: 0.85rem;
+  height: 4px;
+  width: min(18rem, 78vw);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--tertiary) 70%, transparent) 22%,
+    var(--primary-bright) 48%,
+    color-mix(in srgb, var(--tertiary) 75%, transparent) 78%,
+    transparent 100%
+  );
+  opacity: 0;
+  box-shadow:
+    0 0 28px color-mix(in srgb, var(--primary) 45%, transparent),
+    0 0 56px color-mix(in srgb, var(--tertiary) 25%, transparent);
+  animation: phase-reveal-rule-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}
+
+@keyframes phase-reveal-rule-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 0.95;
+    transform: scaleX(1);
+    filter: blur(0);
+  }
 }
 
 @keyframes phase-reveal-title-in {
@@ -340,7 +431,7 @@ html, body {
 
 .phase-reveal-hit-panel {
   position: relative;
-  margin-top: 1.35rem;
+  margin-top: 1.65rem;
   text-align: center;
   opacity: 0;
   animation: phase-reveal-hit-panel-in 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.78s both;
@@ -363,8 +454,8 @@ html, body {
   position: absolute;
   left: 50%;
   top: 40%;
-  width: min(22rem, 92vw);
-  height: 6.5rem;
+  width: min(26rem, 96vw);
+  height: 8rem;
   transform: translate(-50%, -50%);
   pointer-events: none;
   border-radius: 50%;
@@ -394,11 +485,11 @@ html, body {
 .phase-reveal-hit-eyebrow {
   position: relative;
   z-index: 1;
-  margin-bottom: 0.35rem;
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  color: color-mix(in srgb, var(--tertiary) 88%, var(--fg-muted));
+  margin-bottom: 0.45rem;
+  font-size: clamp(0.65rem, 2.8vw, 0.8rem);
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  color: color-mix(in srgb, var(--tertiary) 92%, var(--fg-muted));
 }
 
 .phase-reveal-hit-line {
@@ -406,12 +497,13 @@ html, body {
   z-index: 1;
   font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
   font-weight: 800;
-  font-size: clamp(3rem, 17vw, 5.75rem);
-  line-height: 0.92;
-  letter-spacing: -0.03em;
+  font-size: clamp(3.75rem, 21vw, 7.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
   text-shadow:
-    0 0 56px color-mix(in srgb, var(--primary) 48%, transparent),
-    0 2px 0 color-mix(in srgb, var(--bg) 50%, transparent);
+    0 0 72px color-mix(in srgb, var(--primary) 55%, transparent),
+    0 0 28px color-mix(in srgb, var(--tertiary) 22%, transparent),
+    0 3px 0 color-mix(in srgb, var(--bg) 55%, transparent);
 }
 
 .phase-reveal-hit-num-a,
@@ -470,17 +562,19 @@ html, body {
 .phase-reveal-hit-caption {
   position: relative;
   z-index: 1;
-  margin-top: 0.5rem;
-  font-size: 0.52rem;
-  letter-spacing: 0.12em;
+  margin-top: 0.65rem;
+  font-size: clamp(0.58rem, 2.4vw, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.5;
   color: var(--fg-muted);
 }
 
 .phase-reveal-divider {
-  margin-top: 1.35rem;
-  margin-bottom: 1.5rem;
+  margin-top: 1.55rem;
+  margin-bottom: 1.65rem;
   height: 1px;
-  width: min(12rem, 70vw);
+  width: min(14rem, 76vw);
   background: linear-gradient(
     90deg,
     transparent,
@@ -522,6 +616,21 @@ html, body {
   animation: phase-reveal-soft-pulse 1.1s ease-in-out infinite alternate;
 }
 
+.phase-reveal-result-line {
+  font-size: clamp(0.75rem, 2.9vw, 0.95rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.45;
+}
+
+.phase-reveal-sync-line {
+  margin-top: 1rem;
+  font-size: clamp(0.62rem, 2.5vw, 0.78rem);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  line-height: 1.5;
+}
+
 @keyframes phase-reveal-soft-pulse {
   from {
     opacity: 0.78;
@@ -532,16 +641,18 @@ html, body {
 }
 
 .phase-reveal-progress {
-  margin-top: 1.25rem;
-  height: 3px;
+  margin-top: 1.35rem;
+  height: 5px;
   width: 100%;
-  max-width: 14rem;
+  max-width: min(18rem, 88vw);
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-high) 80%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hairline) 12%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--hairline) 12%, transparent),
+    0 0 20px color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
 .phase-reveal-progress-bar {
@@ -564,8 +675,11 @@ html, body {
   position: absolute;
   right: max(0.75rem, env(safe-area-inset-right));
   bottom: max(0.75rem, env(safe-area-inset-bottom));
-  padding: 0.35rem 0.5rem;
-  opacity: 0.45;
+  padding: 0.45rem 0.65rem;
+  font-size: clamp(0.58rem, 2.2vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  opacity: 0.5;
   transition: opacity 0.15s ease;
 }
 
@@ -579,7 +693,9 @@ html, body {
   .phase-reveal-title-a,
   .phase-reveal-title-b,
   .phase-reveal-flicker,
-  .phase-reveal-progress-bar {
+  .phase-reveal-progress-bar,
+  .phase-reveal-rim,
+  .phase-reveal-title-rule {
     animation: none !important;
   }
 
@@ -592,7 +708,8 @@ html, body {
   .phase-reveal-pretag,
   .phase-reveal-divider,
   .phase-reveal-result-block,
-  .phase-reveal-hit-caption {
+  .phase-reveal-hit-caption,
+  .phase-reveal-title-rule {
     opacity: 1;
     transform: none;
     filter: none;
@@ -604,6 +721,11 @@ html, body {
 
   .phase-reveal-scanbeam {
     opacity: 0;
+  }
+
+  .phase-reveal-rim {
+    opacity: 0.22;
+    transform: none;
   }
 
   .phase-reveal-hit-panel,
@@ -638,43 +760,80 @@ html, body {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: color-mix(in srgb, var(--bg) 58%, rgba(0, 0, 0, 0.82));
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 35%, color-mix(in srgb, var(--primary) 14%, transparent) 0%, transparent 55%),
+    color-mix(in srgb, var(--bg) 52%, rgba(0, 0, 0, 0.88));
   animation: phase-unlock-backdrop 0.38s ease-out both;
 }
 
 .phase-unlock-card {
   position: relative;
-  max-width: min(22rem, 100%);
-  border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--hairline));
-  background: color-mix(in srgb, var(--surface-low) 88%, var(--bg));
-  padding: 1.75rem 1.5rem 1.5rem;
+  max-width: min(28rem, 100%);
+  padding: 2.25rem 1.75rem 2rem;
   text-align: center;
+  border-radius: 2px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-low) 94%, var(--bg)) 0%,
+    color-mix(in srgb, var(--bg) 88%, var(--surface-low)) 100%
+  );
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--tertiary) 12%, transparent),
-    0 24px 64px -20px color-mix(in srgb, var(--primary) 22%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--primary) 42%, var(--hairline)),
+    0 0 0 2px color-mix(in srgb, var(--tertiary) 10%, transparent),
+    0 32px 80px -24px color-mix(in srgb, var(--primary) 35%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 12%, transparent);
   animation: phase-unlock-rise 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
 }
 
+.phase-unlock-card::before,
+.phase-unlock-card::after {
+  content: "";
+  position: absolute;
+  width: 2rem;
+  height: 2rem;
+  pointer-events: none;
+  border-color: color-mix(in srgb, var(--tertiary) 65%, transparent);
+  border-style: solid;
+  opacity: 0.75;
+}
+
+.phase-unlock-card::before {
+  left: 0.65rem;
+  top: 0.65rem;
+  border-width: 2px 0 0 2px;
+}
+
+.phase-unlock-card::after {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border-width: 0 2px 2px 0;
+}
+
 .phase-unlock-eyebrow {
-  margin-bottom: 0.65rem;
-  font-size: 0.52rem;
-  letter-spacing: 0.26em;
+  margin-bottom: 0.85rem;
+  font-size: clamp(0.58rem, 2.4vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.32em;
   color: var(--tertiary);
 }
 
 .phase-unlock-title {
-  font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif;
-  font-size: clamp(1.35rem, 5.5vw, 1.85rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-family: "Noto Serif JP", ui-serif, Georgia, serif;
+  font-size: clamp(1.85rem, 7.5vw, 2.85rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
   color: var(--primary-bright);
-  text-shadow: 0 0 40px color-mix(in srgb, var(--primary) 35%, transparent);
+  text-shadow:
+    0 0 48px color-mix(in srgb, var(--primary) 42%, transparent),
+    0 0 100px color-mix(in srgb, var(--tertiary) 15%, transparent);
 }
 
 .phase-unlock-sub {
-  margin-top: 0.75rem;
-  font-size: 0.52rem;
-  letter-spacing: 0.18em;
+  margin-top: 1rem;
+  font-size: clamp(0.58rem, 2.4vw, 0.74rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
   color: var(--fg-muted);
 }
 
@@ -711,5 +870,370 @@ html, body {
   .phase-unlock-card {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ---- Works catalog reveal（チュートリアル完了 → グリッド同期） ---- */
+@keyframes works-catalog-cell-in {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.72) rotateX(-16deg) rotateZ(-1.5deg);
+    filter: blur(16px) brightness(1.45) saturate(1.35);
+  }
+  48% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.05) rotateX(5deg) rotateZ(0.35deg);
+    filter: blur(0.6px) brightness(1.08) saturate(1.12);
+  }
+  72% {
+    transform: translateY(2px) scale(0.985) rotateX(-1.5deg) rotateZ(-0.12deg);
+    filter: blur(0) brightness(1.03) saturate(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg) rotateZ(0deg);
+    filter: blur(0) brightness(1) saturate(1);
+  }
+}
+
+@keyframes works-catalog-header-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-22px) scale(0.96);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes works-core-catalog-reveal-shell {
+  0% {
+    border-color: color-mix(in srgb, var(--primary) 62%, var(--surface-high));
+    box-shadow:
+      inset 0 0 32px color-mix(in srgb, var(--primary) 22%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--primary-bright) 35%, transparent),
+      0 0 48px color-mix(in srgb, var(--primary) 28%, transparent),
+      0 18px 48px color-mix(in srgb, var(--bg) 45%, transparent);
+  }
+  55% {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--surface-high));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 28%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
+      0 0 36px color-mix(in srgb, var(--primary) 16%, transparent),
+      0 14px 40px color-mix(in srgb, var(--bg) 50%, transparent);
+  }
+  100% {
+    border-color: color-mix(in srgb, var(--surface-high) 48%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--hairline) 22%, transparent),
+      0 10px 36px color-mix(in srgb, var(--bg) 55%, transparent);
+  }
+}
+
+/* チュートリアル完了後の本編グリッド（第1–3段階＋拡張） */
+.works-core-catalog-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  margin-left: max(0.35rem, env(safe-area-inset-left));
+  margin-right: max(0.35rem, env(safe-area-inset-right));
+  padding: clamp(0.65rem, 2vw, 1rem);
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--surface-high) 48%, transparent);
+  background: linear-gradient(
+    168deg,
+    color-mix(in srgb, var(--surface-low) 92%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 55%, var(--surface-low)) 48%,
+    color-mix(in srgb, var(--surface-low) 75%, transparent) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--hairline) 22%, transparent),
+    0 10px 36px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.works-catalog-reveal-play.works-core-catalog-root {
+  perspective: 920px;
+  transform-style: preserve-3d;
+  animation: works-core-catalog-reveal-shell 1.12s cubic-bezier(0.28, 0.88, 0.24, 1) both;
+}
+
+.works-core-catalog-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    color-mix(in srgb, var(--primary) 9%, transparent) 42%,
+    transparent 78%
+  );
+  transition: opacity 0.55s ease;
+}
+
+.works-core-catalog-synced {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--surface-high));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
+    0 0 28px color-mix(in srgb, var(--primary) 12%, transparent),
+    0 14px 40px color-mix(in srgb, var(--bg) 50%, transparent);
+}
+
+.works-core-catalog-synced::before {
+  opacity: 1;
+  animation: works-core-catalog-sheen 5s ease-in-out infinite;
+}
+
+@keyframes works-core-catalog-sheen {
+  0%,
+  100% {
+    transform: translateX(-6%) skewX(-6deg);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateX(8%) skewX(-6deg);
+    opacity: 0.55;
+  }
+}
+
+.works-core-catalog-root .works-core-phase {
+  position: relative;
+  padding-left: 0.55rem;
+}
+
+.works-core-catalog-root .works-core-phase::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.12rem;
+  bottom: 0.12rem;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary-bright) 85%, var(--primary)),
+    color-mix(in srgb, var(--primary) 40%, var(--secondary))
+  );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 35%, transparent);
+  opacity: 0.92;
+}
+
+.works-core-catalog-root .works-core-phase--extra::after {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tertiary) 90%, var(--secondary)),
+    color-mix(in srgb, var(--tertiary) 35%, var(--surface-high))
+  );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tertiary) 28%, transparent);
+}
+
+.works-catalog-reveal-play .works-core-phase-title-row {
+  animation: works-catalog-header-in 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .works-core-phase-title-row {
+  animation-delay: 0.03s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .works-core-phase-title-row {
+  animation-delay: 0.12s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .works-core-phase-title-row {
+  animation-delay: 0.2s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(4) .works-core-phase-title-row {
+  animation-delay: 0.26s;
+}
+
+.works-catalog-reveal-play .grid > * {
+  transform-origin: center 78%;
+  transform-style: preserve-3d;
+  animation: works-catalog-cell-in 0.74s cubic-bezier(0.22, 1, 0.34, 1.02) both;
+}
+
+/* 第1→2→3→拡張へ連続するウェーブ（各段の .grid 内の並びに追随）
+   遅延を変えたら works-page-client の WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS も同期 */
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(1) {
+  animation-delay: 0.08s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(2) {
+  animation-delay: 0.11s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(3) {
+  animation-delay: 0.14s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(4) {
+  animation-delay: 0.17s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(6) {
+  animation-delay: 0.23s;
+}
+
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(1) {
+  animation-delay: 0.27s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(2) {
+  animation-delay: 0.3s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(3) {
+  animation-delay: 0.33s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(4) {
+  animation-delay: 0.36s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(5) {
+  animation-delay: 0.39s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(6) {
+  animation-delay: 0.42s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(7) {
+  animation-delay: 0.45s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(8) {
+  animation-delay: 0.48s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(9) {
+  animation-delay: 0.51s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(10) {
+  animation-delay: 0.54s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(11) {
+  animation-delay: 0.57s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(2) .grid > *:nth-child(12) {
+  animation-delay: 0.6s;
+}
+
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(1) {
+  animation-delay: 0.64s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(2) {
+  animation-delay: 0.67s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(3) {
+  animation-delay: 0.7s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(4) {
+  animation-delay: 0.73s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(5) {
+  animation-delay: 0.76s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(3) .grid > *:nth-child(6) {
+  animation-delay: 0.79s;
+}
+
+.works-catalog-reveal-play .works-core-phase:nth-child(4) .grid > *:nth-child(1) {
+  animation-delay: 0.83s;
+}
+.works-catalog-reveal-play .works-core-phase:nth-child(4) .grid > *:nth-child(2) {
+  animation-delay: 0.86s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .works-catalog-reveal-play.works-core-catalog-root {
+    perspective: none;
+    animation: none !important;
+  }
+
+  .works-catalog-reveal-play .grid > * {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .works-catalog-reveal-play .works-core-phase-title-row {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .works-core-catalog-synced::before {
+    animation: none !important;
+    opacity: 0.35;
+    transform: none;
+  }
+}
+
+/* ---- Appraisal session gather（タイムアップ案内） ---- */
+.appraisal-gather-root {
+  animation: appraisal-gather-backdrop 0.35s ease-out both;
+}
+
+.appraisal-gather-card {
+  animation: appraisal-gather-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+}
+
+@keyframes appraisal-gather-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes appraisal-gather-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appraisal-gather-root,
+  .appraisal-gather-card {
+    animation: none !important;
+  }
+
+  .appraisal-gather-root,
+  .appraisal-gather-card {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Appraisal session deadline（終盤の緊張） ---- */
+@keyframes appraisal-deadline-urgent-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.88;
+    filter: brightness(1.18);
+  }
+}
+
+.appraisal-deadline-urgent-pulse {
+  animation: appraisal-deadline-urgent-pulse 1.05s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appraisal-deadline-urgent-pulse {
+    animation: none !important;
+    opacity: 1;
+    filter: none;
   }
 }
