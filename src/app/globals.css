@@ -115,6 +115,30 @@ html, body {
   background-position: 0 0, 11px 7px;
 }
 
+/* ---- /works チュートリアル完了直後: 画面全体のフェードイン（スワイプ入場なし） ---- */
+@keyframes works-main-tutorial-fade-in {
+  from {
+    opacity: 0.08;
+    filter: brightness(0.88);
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.works-main-tutorial-fade-in {
+  animation: works-main-tutorial-fade-in 0.48s cubic-bezier(0.25, 0.85, 0.32, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .works-main-tutorial-fade-in {
+    animation: none !important;
+    opacity: 1;
+    filter: none;
+  }
+}
+
 /* ---- /works 入場: 判定画面のスワイプ方向に連動 ---- */
 @keyframes works-reveal-from-left {
   from {
@@ -909,6 +933,42 @@ html, body {
   }
 }
 
+/* チュートリアル直後: 3D バウンドよりフェードでブロックが並ぶ */
+@keyframes works-catalog-cell-lineup {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes works-tutorial-catalog-shell-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(8px);
+    border-color: color-mix(in srgb, var(--primary) 52%, var(--surface-high));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary-bright) 28%, transparent),
+      0 12px 40px color-mix(in srgb, var(--bg) 62%, transparent);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+    border-color: color-mix(in srgb, var(--surface-high) 48%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--primary-bright) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--hairline) 22%, transparent),
+      0 10px 36px color-mix(in srgb, var(--bg) 55%, transparent);
+  }
+}
+
 @keyframes works-core-catalog-reveal-shell {
   0% {
     border-color: color-mix(in srgb, var(--primary) 62%, var(--surface-high));
@@ -962,6 +1022,12 @@ html, body {
   perspective: 920px;
   transform-style: preserve-3d;
   animation: works-core-catalog-reveal-shell 1.12s cubic-bezier(0.28, 0.88, 0.24, 1) both;
+}
+
+.works-catalog-reveal-play.works-tutorial-lineup.works-core-catalog-root {
+  perspective: none;
+  transform-style: flat;
+  animation: works-tutorial-catalog-shell-fade 0.68s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .works-core-catalog-root::before {
@@ -1060,8 +1126,14 @@ html, body {
   animation: works-catalog-cell-in 0.74s cubic-bezier(0.22, 1, 0.34, 1.02) both;
 }
 
+.works-catalog-reveal-play.works-tutorial-lineup .grid > * {
+  transform-origin: center center;
+  transform-style: flat;
+  animation: works-catalog-cell-lineup 0.64s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* 第1→2→3→拡張へ連続するウェーブ（各段の .grid 内の並びに追随）
-   遅延を変えたら works-page-client の WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS も同期 */
+   遅延を変えたら `src/lib/worksCatalogRevealFeedback.ts` の WORKS_CATALOG_REVEAL_CELL_PULSE_AT_MS も同期 */
 .works-catalog-reveal-play .works-core-phase:nth-child(1) .grid > *:nth-child(1) {
   animation-delay: 0.08s;
 }
@@ -1150,7 +1222,21 @@ html, body {
     animation: none !important;
   }
 
+  .works-catalog-reveal-play.works-tutorial-lineup.works-core-catalog-root {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
   .works-catalog-reveal-play .grid > * {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .works-catalog-reveal-play.works-tutorial-lineup .grid > * {
     animation: none !important;
     opacity: 1;
     transform: none;
