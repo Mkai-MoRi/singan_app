@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useJudgments } from "@/hooks/useJudgments";
@@ -18,6 +19,9 @@ import { setTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
 import { clearWorksReturnSwipe, setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
 const SWIPE_THRESHOLD = 88;
+
+/** 本番一問目（CASE_01）の作品画像 — チュートリアル（CASE_00）の次 */
+const CASE_01_HERO = "/works/case-01-hero.png";
 
 export default function JudgeWorkClient({ id }: { id: number }) {
   const router = useRouter();
@@ -354,29 +358,46 @@ export default function JudgeWorkClient({ id }: { id: number }) {
               aria-hidden
             />
 
-            {/* ドラッグ方向の色フラッシュ */}
+            {/* ドラッグ方向の色フラッシュ（CASE_01 の作品画像より手前） */}
             <div
-              className="pointer-events-none absolute inset-0 transition-opacity duration-75"
+              className="pointer-events-none absolute inset-0 z-[6] transition-opacity duration-75"
               style={{
                 background: "radial-gradient(ellipse 90% 70% at 85% 45%, rgba(255,140,160,0.32), transparent 55%)",
                 opacity: showR * 0.95,
               }}
             />
             <div
-              className="pointer-events-none absolute inset-0 transition-opacity duration-75"
+              className="pointer-events-none absolute inset-0 z-[6] transition-opacity duration-75"
               style={{
                 background: "radial-gradient(ellipse 90% 70% at 15% 45%, rgba(91,225,71,0.28), transparent 55%)",
                 opacity: showL * 0.95,
               }}
             />
 
-            <div
-              className="pointer-events-none absolute inset-5 opacity-[0.14]"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(255,176,201,0.12) 0 1px, transparent 1px 20px), repeating-linear-gradient(0deg, rgba(255,176,201,0.1) 0 1px, transparent 1px 20px)",
-              }}
-            />
+            {id === 1 ? (
+              <div className="pointer-events-none absolute inset-0 z-[4]">
+                <Image
+                  src={CASE_01_HERO}
+                  alt={`${work.title} — 鑑定対象の作品`}
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width: 768px) 100vw, min(21rem, 100vw - 1.25rem)"
+                  priority
+                />
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/25 to-black/15"
+                  aria-hidden
+                />
+              </div>
+            ) : (
+              <div
+                className="pointer-events-none absolute inset-5 opacity-[0.14]"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg, rgba(255,176,201,0.12) 0 1px, transparent 1px 20px), repeating-linear-gradient(0deg, rgba(255,176,201,0.1) 0 1px, transparent 1px 20px)",
+                }}
+              />
+            )}
 
             {/* 確定ゲージ（中央から左右に伸びる） */}
             <div className="pointer-events-none absolute bottom-9 left-5 right-5 z-20 h-1.5 overflow-hidden rounded-full bg-black/45">
@@ -403,49 +424,89 @@ export default function JudgeWorkClient({ id }: { id: number }) {
                       : "左右にスワイプで判定"}
             </div>
 
-            <div className="relative z-10 flex h-full flex-col items-center justify-center px-5 pb-8 pt-6 text-center">
-              <p className="mb-2 font-mono text-[0.65rem]" style={{ color: "var(--fg-muted)" }}>
-                {work.caseName}
-                {" // "}
-                TARGET
-              </p>
-              <h1
-                className="font-display text-[clamp(4rem,20vw,6.5rem)] font-bold leading-none tracking-tighter glitch-text transition-colors duration-75"
-                style={{ color: idHue }}
-              >
-                {String(id).padStart(2, "0")}
-              </h1>
-              <div
-                className="my-4 h-px w-24 transition-colors duration-75"
-                style={{
-                  background:
-                    showR > showL
-                      ? `rgba(255,176,201,${0.3 + showR * 0.45})`
-                      : showL > showR
-                        ? `rgba(91,225,71,${0.25 + showL * 0.45})`
-                        : lockedPending
-                          ? "rgba(221,191,200,0.35)"
-                          : "rgba(255,176,201,0.35)",
-                }}
-              />
-              <p
-                className="font-display text-xs font-bold uppercase tracking-[0.25em] transition-colors duration-75"
-                style={{
-                  color:
-                    showR > showL ? "var(--primary)" : showL > showR ? "var(--tertiary)" : lockedPending ? "var(--secondary)" : "var(--primary)",
-                }}
-              >
-                {work.title}
-              </p>
-              <p className="mt-3 max-w-[15rem] text-[0.65rem] leading-snug normal-case opacity-85" style={{ color: "var(--secondary)" }}>
-                {work.meta}
-              </p>
-              {mounted && currentJudgment !== "undecided" && (
-                <p className="mt-4 font-mono text-[0.58rem] opacity-80" style={{ color: "var(--fg-muted)" }}>
-                  記録:{" "}
-                  {currentJudgment === "authentic" ? "本物" : currentJudgment === "fake" ? "偽物" : "保留"}
-                  （いつでもスワイプで変更可）
-                </p>
+            <div
+              className={`relative z-10 flex h-full flex-col px-5 pb-8 pt-6 text-center ${
+                id === 1 ? "items-stretch justify-end pb-24 text-left" : "items-center justify-center"
+              }`}
+            >
+              {id === 1 ? (
+                <>
+                  <p className="mb-2 font-mono text-[0.62rem] text-white/75 drop-shadow-md">
+                    {work.caseName}
+                    <span className="text-white/50">{" // TARGET"}</span>
+                  </p>
+                  <h1
+                    className="font-display text-[clamp(1.75rem,6.5vw,2.25rem)] font-bold leading-tight tracking-tight text-white drop-shadow-md transition-colors duration-75"
+                    style={{
+                      color:
+                        showR > showL
+                          ? "rgb(255 210 220)"
+                          : showL > showR
+                            ? "rgb(180 240 190)"
+                            : lockedPending
+                              ? "rgb(230 210 215)"
+                              : "white",
+                    }}
+                  >
+                    {work.title}
+                  </h1>
+                  <p className="mt-2 max-w-none text-[0.7rem] leading-snug normal-case text-white/88 drop-shadow">
+                    {work.meta}
+                  </p>
+                  {mounted && currentJudgment !== "undecided" && (
+                    <p className="mt-4 font-mono text-[0.58rem] text-white/75">
+                      記録:{" "}
+                      {currentJudgment === "authentic" ? "本物" : currentJudgment === "fake" ? "偽物" : "保留"}
+                      （いつでもスワイプで変更可）
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="mb-2 font-mono text-[0.65rem]" style={{ color: "var(--fg-muted)" }}>
+                    {work.caseName}
+                    {" // "}
+                    TARGET
+                  </p>
+                  <h1
+                    className="font-display text-[clamp(4rem,20vw,6.5rem)] font-bold leading-none tracking-tighter glitch-text transition-colors duration-75"
+                    style={{ color: idHue }}
+                  >
+                    {String(id).padStart(2, "0")}
+                  </h1>
+                  <div
+                    className="my-4 h-px w-24 transition-colors duration-75"
+                    style={{
+                      background:
+                        showR > showL
+                          ? `rgba(255,176,201,${0.3 + showR * 0.45})`
+                          : showL > showR
+                            ? `rgba(91,225,71,${0.25 + showL * 0.45})`
+                            : lockedPending
+                              ? "rgba(221,191,200,0.35)"
+                              : "rgba(255,176,201,0.35)",
+                    }}
+                  />
+                  <p
+                    className="font-display text-xs font-bold uppercase tracking-[0.25em] transition-colors duration-75"
+                    style={{
+                      color:
+                        showR > showL ? "var(--primary)" : showL > showR ? "var(--tertiary)" : lockedPending ? "var(--secondary)" : "var(--primary)",
+                    }}
+                  >
+                    {work.title}
+                  </p>
+                  <p className="mt-3 max-w-[15rem] text-[0.65rem] leading-snug normal-case opacity-85" style={{ color: "var(--secondary)" }}>
+                    {work.meta}
+                  </p>
+                  {mounted && currentJudgment !== "undecided" && (
+                    <p className="mt-4 font-mono text-[0.58rem] opacity-80" style={{ color: "var(--fg-muted)" }}>
+                      記録:{" "}
+                      {currentJudgment === "authentic" ? "本物" : currentJudgment === "fake" ? "偽物" : "保留"}
+                      （いつでもスワイプで変更可）
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
