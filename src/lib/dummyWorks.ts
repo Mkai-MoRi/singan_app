@@ -3,6 +3,10 @@ export interface Work {
   caseName: string;
   title: string;
   meta: string;
+  /** 記録タブ「作品検索」でピンしたときに表示する解説（任意） */
+  caption?: string;
+  /** タイトル以外の表記でも検索できるようにする（任意） */
+  searchAliases?: readonly string[];
 }
 
 export const WORKS: Work[] = [
@@ -17,7 +21,15 @@ export const WORKS: Work[] = [
   { id: 9,  caseName: "CASE_09", title: "抽象・白",           meta: "油彩・麻布 / 推定2000s" },
   { id: 10, caseName: "CASE_10", title: "室内 午後",          meta: "油彩・キャンバス / 推定1970s" },
   { id: 11, caseName: "CASE_11", title: "花卉 No.3",          meta: "水彩・紙 / 推定1990s" },
-  { id: 12, caseName: "CASE_12", title: "浜辺の人物",         meta: "油彩・キャンバス / 推定1960s" },
+  {
+    id: 12,
+    caseName: "CASE_12",
+    title: "『Specular / スペキュラー』",
+    meta: "(2021)",
+    searchAliases: ["Specular", "specular", "スペキュラー"],
+    caption:
+      "『Specular』は、「見る」という行為そのものを主題にした作品です。\n\n球体に投影された目の映像を通して、視覚が世界を捉えるだけでなく、自らに折り返されていく再帰的な構造が示されます。\n\nそこには、ソーシャルメディアや陰謀論、疑似科学、ニュースなど、現代人の認識を形づくる視覚情報が幾重にも重ねられています。\n\n観客は、見ることと見られることのあいだを行き来しながら、スクリーンに媒介された現代の知覚や信念の不安定さに向き合うことになります。",
+  },
   { id: 13, caseName: "CASE_13", title: "黒の習作",           meta: "インク・紙 / 推定1980s" },
   { id: 14, caseName: "CASE_14", title: "女性肖像 習作",      meta: "鉛筆・紙 / 推定1910s" },
   { id: 15, caseName: "CASE_15", title: "都市 断面",          meta: "アクリル・ボード / 推定2010s" },

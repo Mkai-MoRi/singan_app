@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback } from "react";
 import { useJudgments } from "@/hooks/useJudgments";
 import { useOperatorName } from "@/hooks/useOperatorName";
 import { usePracticeCaseUnlock } from "@/hooks/usePracticeCaseUnlock";
@@ -13,10 +12,9 @@ import { firstUndecidedAccessibleInCatalog } from "@/lib/workPhases";
 import { resetTerminal } from "@/lib/terminalReset";
 
 export default function HomePageClient() {
-  const router = useRouter();
   const { judgments, mounted } = useJudgments();
-  const { secretUnlocked, secretMounted, tryUnlockWithPhrase } = useSecretCaseUnlock();
-  const { practiceUnlocked, practiceMounted, tryUnlockPracticeWithPhrase } = usePracticeCaseUnlock();
+  const { secretUnlocked, secretMounted } = useSecretCaseUnlock();
+  const { practiceUnlocked, practiceMounted } = usePracticeCaseUnlock();
   const { name: operatorName, setName: setOperatorName, commitName: commitOperatorName, mounted: operatorMounted } =
     useOperatorName();
 
@@ -37,41 +35,9 @@ export default function HomePageClient() {
   const nextWork = mounted ? firstUndecidedAccessibleInCatalog(judgments, catalog) : null;
   const remaining = slotTotal - judged;
 
-  const [keywordDraft, setKeywordDraft] = useState("");
-  const [keywordHint, setKeywordHint] = useState<"idle" | "ok_secret" | "ok_practice" | "fail">("idle");
-
-  useEffect(() => {
-    if (keywordHint === "fail") {
-      const t = window.setTimeout(() => setKeywordHint("idle"), 2400);
-      return () => window.clearTimeout(t);
-    }
-  }, [keywordHint]);
-
-  const onKeywordSubmit = useCallback(
-    (e: FormEvent) => {
-      e.preventDefault();
-      const raw = keywordDraft.trim();
-      if (!raw) return;
-      if (tryUnlockWithPhrase(raw)) {
-        setKeywordHint("ok_secret");
-        setKeywordDraft("");
-        router.push("/works/21");
-        return;
-      }
-      if (tryUnlockPracticeWithPhrase(raw)) {
-        setKeywordHint("ok_practice");
-        setKeywordDraft("");
-        router.push("/works/0");
-        return;
-      }
-      setKeywordHint("fail");
-    },
-    [keywordDraft, tryUnlockWithPhrase, tryUnlockPracticeWithPhrase, router]
-  );
-
   const onResetTerminal = useCallback(() => {
     const ok = window.confirm(
-      "端末に保存された鑑定記録・呼称・拡張枠（秘密・練習）の解除状態をすべて消去します。共有用 URL の取り込み（?j=）も解除されます。続行しますか？"
+      "端末に保存された鑑定記録・呼称・拡張枠（秘密・練習）の解除状態・記録タブの作品検索ピンをすべて消去します。共有用 URL の取り込み（?j=）も解除されます。続行しますか？"
     );
     if (!ok) return;
     resetTerminal();
@@ -164,6 +130,11 @@ export default function HomePageClient() {
           </button>
         </div>
 
+        <p className="border border-[color:var(--surface-high)]/30 bg-[color:var(--surface-low)]/50 px-3 py-2 font-mono text-[0.6rem] leading-relaxed text-[color:var(--fg-muted)]">
+          秘密枠・練習枠の解禁フレーズは、<Link href="/summary" className="text-[color:var(--tertiary)] underline-offset-2 hover:underline">記録タブ</Link>
+          の「作品検索」から入力できます。
+        </p>
+
         {mounted && nextWork ? (
           <Link
             href={`/works/${nextWork.id}`}
@@ -195,57 +166,6 @@ export default function HomePageClient() {
             <p className="mt-1 font-mono text-[0.65rem] text-[color:var(--secondary)]">記録タブで一覧を確認できます。</p>
           </Link>
         ) : null}
-
-        <form
-          onSubmit={onKeywordSubmit}
-          className="border border-[color:var(--surface-high)]/40 bg-[color:var(--surface-low)]/70 p-4 md:p-5"
-        >
-          <label htmlFor="terminal-keyword" className="mb-2 block text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[color:var(--fg-muted)]">
-            端末キーワード
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="terminal-keyword"
-              name="keyword"
-              type="text"
-              autoComplete="off"
-              placeholder="例: 夕陽ちゃん / 練習"
-              value={keywordDraft}
-              onChange={(e) => {
-                setKeywordDraft(e.target.value);
-                if (keywordHint !== "idle") setKeywordHint("idle");
-              }}
-              className="min-w-0 flex-1 border border-[color:var(--hairline)]/50 bg-[color:var(--bg)] px-3 py-2.5 font-mono text-sm text-[color:var(--secondary)] outline-none transition-[border-color,box-shadow] placeholder:text-[color:var(--fg-muted)]/70 focus:border-[color:var(--tertiary)]/50 focus:shadow-[0_0_0_1px_color-mix(in_srgb,var(--tertiary)_30%,transparent)]"
-            />
-            <button
-              type="submit"
-              className="shrink-0 border border-[color:var(--tertiary)]/45 bg-[color:var(--tertiary)]/10 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-wider text-[color:var(--tertiary)] transition-colors hover:bg-[color:var(--tertiary)]/18"
-            >
-              送信
-            </button>
-          </div>
-          {secretMounted && secretUnlocked ? (
-            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]">拡張鑑定枠 ACTIVE（21枠）</p>
-          ) : null}
-          {practiceMounted && practiceUnlocked ? (
-            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--secondary)]">練習枠 ACTIVE（CASE_00）</p>
-          ) : null}
-          {keywordHint === "ok_secret" ? (
-            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--tertiary)]" role="status">
-              CLEARANCE_ACCEPTED
-            </p>
-          ) : null}
-          {keywordHint === "ok_practice" ? (
-            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--secondary)]" role="status">
-              DRILL_MODE_ON
-            </p>
-          ) : null}
-          {keywordHint === "fail" ? (
-            <p className="mt-2 font-mono text-[0.6rem] text-[color:var(--error)]" role="status">
-              CLEARANCE_DENIED
-            </p>
-          ) : null}
-        </form>
 
         <div className="border-l-2 border-[color:var(--primary)] bg-[color:var(--surface-low)] p-4 md:p-6">
           <div className="mb-3 flex items-end justify-between md:mb-4">
