@@ -353,13 +353,20 @@ export default function CameraPageClient() {
   const [recording, setRecording] = useState(false);
   const [recordSetupError, setRecordSetupError] = useState<string | null>(null);
   const [finderStartMs, setFinderStartMs] = useState<number | null>(null);
+  /** true = インカメ（user）、false = アウトカメ（environment） */
+  const [useFrontCamera, setUseFrontCamera] = useState(false);
+  const prevFacingRef = useRef<boolean | null>(null);
   /** getUserMedia 成功のたびに増やし、video へ srcObject + play を確実に同期する */
   const [streamGeneration, setStreamGeneration] = useState(0);
 
-  // カメラ起動
+  // カメラ起動（向き変更時はストリームを作り直す）
   useEffect(() => {
     let cancelled = false;
     isMountedRef.current = true;
+
+    const prevFacing = prevFacingRef.current;
+    const facingSwitched = prevFacing !== null && prevFacing !== useFrontCamera;
+    prevFacingRef.current = useFrontCamera;
 
     function startStream(constraints: MediaStreamConstraints, fallback = false) {
       navigator.mediaDevices
@@ -369,10 +376,10 @@ export default function CameraPageClient() {
           streamRef.current = stream;
           // video への接続は useEffect(streamGeneration) 側で行う（ref 未確定・iOS の play 対策）
           setStreamGeneration((g) => g + 1);
-          // torch サポート確認
+          // torch サポート確認（インカメでは通常 false）
           const track = stream.getVideoTracks()[0];
           const caps = track?.getCapabilities() as Record<string, unknown> | undefined;
-          if (caps?.torch) setTorchSupported(true);
+          setTorchSupported(!!caps?.torch);
         })
         .catch((err: unknown) => {
           if (cancelled) return;
@@ -385,7 +392,23 @@ export default function CameraPageClient() {
         });
     }
 
-    startStream({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    const facing = useFrontCamera ? "user" : "environment";
+    const constraints: MediaStreamConstraints = {
+      video: { facingMode: { ideal: facing } },
+      audio: false,
+    };
+
+    if (facingSwitched) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setCameraReady(false);
+        setTorchOn(false);
+        setTorchSupported(false);
+        startStream(constraints, false);
+      });
+    } else {
+      startStream(constraints, false);
+    }
 
     return () => {
       cancelled = true;
@@ -395,7 +418,7 @@ export default function CameraPageClient() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [useFrontCamera]);
 
   // MediaStream → <video>（コミット後の ref に必ず接続。iOS は明示的 play が必要なことが多い）
   useEffect(() => {
@@ -473,7 +496,12 @@ export default function CameraPageClient() {
       return;
     }
 
+    if (useFrontCamera) {
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(video, 0, 0, w, h);
+    if (useFrontCamera) ctx.setTransform(1, 0, 0, 1, 0, 0);
     const d = readAppraisalDeadlineMs();
     const s = readAppraisalSessionStartMs();
     const now = Date.now();
@@ -501,7 +529,7 @@ export default function CameraPageClient() {
       flashTimerRef.current = setTimeout(() => setFlashing(false), 160);
       setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return objectUrl; });
     }, "image/png");
-  }, [recording, finderStartMs]);
+  }, [recording, finderStartMs, useFrontCamera]);
 
   const discard = useCallback(() => {
     setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
@@ -533,6 +561,16 @@ export default function CameraPageClient() {
       setTorchOn(newVal);
     } catch { /* デバイス非対応 */ }
   }, [torchOn, torchSupported]);
+
+  const toggleFacing = useCallback(() => {
+    setUseFrontCamera((v) => !v);
+    setZoomLevel(1);
+    const v = videoRef.current;
+    if (v) {
+      v.style.transformOrigin = "center center";
+      v.style.transform = "";
+    }
+  }, []);
 
   const toggleZoom = useCallback(async () => {
     const newZoom = zoomLevel === 1 ? 2 : 1;
@@ -641,23 +679,27 @@ export default function CameraPageClient() {
 
         {/* ── ファインダー（ナビ上のスロットいっぱいまで縦に伸ばす） ───────── */}
         <div className="relative min-h-0 min-h-full flex-1 basis-0 overflow-hidden">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            onLoadedData={() => {
-              void videoRef.current?.play().catch(() => {});
-            }}
-            onCanPlay={() => {
-              if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
-              setFinderStartMs(Date.now());
-              setCameraReady(true);
-              void videoRef.current?.play().catch(() => {});
-            }}
-            onError={() => setCameraError("カメラの映像を取得できませんでした。ブラウザを再起動してお試しください。")}
-            className="relative z-0 h-full w-full object-cover [transform:translateZ(0)]"
-          />
+          <div
+            className={`absolute inset-0 z-0 overflow-hidden ${useFrontCamera ? "-scale-x-100" : ""}`}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              onLoadedData={() => {
+                void videoRef.current?.play().catch(() => {});
+              }}
+              onCanPlay={() => {
+                if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
+                setFinderStartMs(Date.now());
+                setCameraReady(true);
+                void videoRef.current?.play().catch(() => {});
+              }}
+              onError={() => setCameraError("カメラの映像を取得できませんでした。ブラウザを再起動してお試しください。")}
+              className="relative z-0 h-full w-full object-cover [transform:translateZ(0)]"
+            />
+          </div>
 
           {/* スキャンライン + ドットグリッド */}
           <div className="singan-scanlines pointer-events-none absolute inset-0" />
@@ -818,8 +860,21 @@ export default function CameraPageClient() {
                 </p>
               </div>
 
-              {/* 右パネル: ズーム + REC */}
+              {/* 右パネル: イン/アウト + ズーム + REC */}
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3">
+                {/* カメラ向き（インカメ / アウトカメ） */}
+                <button
+                  type="button"
+                  onClick={toggleFacing}
+                  className={`flex h-10 w-10 items-center justify-center transition-all active:scale-90 ${useFrontCamera ? "bg-[#a4e400] text-black" : "bg-black/55 text-[#a4e400] border border-[#a4e400]/30"}`}
+                  aria-label={useFrontCamera ? "アウトカメラに切り替え" : "インカメラに切り替え"}
+                >
+                  <span className="material-symbols-outlined text-[18px]">cameraswitch</span>
+                </button>
+                <p className="text-center font-mono text-[0.36rem] uppercase tracking-[0.14em] text-[#a4e400]/45">
+                  {useFrontCamera ? "FRONT" : "REAR"}
+                </p>
+
                 {/* ズーム */}
                 <button
                   type="button"

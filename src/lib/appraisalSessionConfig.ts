@@ -1,8 +1,8 @@
 /**
  * 鑑定セッションの制限時間（ミリ秒）。
- * 本番想定は 60 * 60 * 1000（60 分）。検証中は短くして挙動を確認してください。
+ * タイムアップまでの長さ（HUD・締切の基準）。
  */
-export const APPRAISAL_SESSION_LIMIT_MS = 20_000;
+export const APPRAISAL_SESSION_LIMIT_MS = 3 * 60 * 1000; // 3 分
 
 /** タイムアップ時の集合案内（会場名は運用に合わせて差し替え） */
 export const APPRAISAL_GATHER_MESSAGE = "丸々へお集まりください。";
