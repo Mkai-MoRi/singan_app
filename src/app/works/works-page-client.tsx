@@ -1,6 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,6 +44,58 @@ function phaseUnlockHeading(kind: PhaseRevealKind): string {
 function phaseUnlockScrollTargetId(kind: PhaseRevealKind): string {
   if (kind === "afterPhase1") return "works-appraisal-phase-2";
   return "works-appraisal-phase-3";
+}
+
+/** チュートリアル直後・100問演出など、グリッド同期時にカタログ下端までゆっくりスクロール */
+function useWorksCatalogRevealScroll(rootRef: RefObject<HTMLElement | null>, play: boolean) {
+  useEffect(() => {
+    if (!play || typeof window === "undefined") return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+
+    let cancelled = false;
+    let scrollRaf = 0;
+
+    const setup = () => {
+      if (cancelled) return;
+      const root = rootRef.current;
+      if (!root) return;
+
+      const yStart = Math.max(0, root.getBoundingClientRect().top + window.scrollY - 52);
+      window.scrollTo({ top: yStart, behavior: "instant" });
+
+      const bottom = root.getBoundingClientRect().bottom + window.scrollY;
+      const doc = document.documentElement;
+      const maxScroll = Math.max(0, (doc?.scrollHeight ?? 0) - window.innerHeight);
+      const yEnd = Math.min(maxScroll, Math.max(yStart, bottom - window.innerHeight + 80));
+
+      if (yEnd <= yStart + 40) return;
+
+      const durationMs = 1520;
+      const t0 = performance.now();
+      const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+      const tick = (now: number) => {
+        if (cancelled) return;
+        const u = Math.min(1, (now - t0) / durationMs);
+        window.scrollTo(0, yStart + (yEnd - yStart) * easeInOutCubic(u));
+        if (u < 1) scrollRaf = window.requestAnimationFrame(tick);
+      };
+      scrollRaf = window.requestAnimationFrame(tick);
+    };
+
+    let innerBoot = 0;
+    const outerBoot = window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      innerBoot = window.requestAnimationFrame(setup);
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(outerBoot);
+      window.cancelAnimationFrame(innerBoot);
+      window.cancelAnimationFrame(scrollRaf);
+    };
+  }, [play, rootRef]);
 }
 
 const STATUS_LABEL: Record<Judgment, string> = {
@@ -177,6 +239,56 @@ function WorkCatalogBlindCell() {
   );
 }
 
+/** 見出し6タップ用のダミーセル（本番 CASE とは独立した演出枠） */
+function WorkHundredBulkCell({ index }: { index: number }) {
+  const n = index + 1;
+  const style: CSSProperties = { ["--hundred-stagger" as string]: index };
+  return (
+    <div
+      className="works-hundred-bulk-cell relative flex aspect-square flex-col justify-between overflow-hidden border border-solid border-[color:color-mix(in_srgb,var(--outline-variant)_22%,transparent)] bg-[color:color-mix(in_srgb,var(--surface-low)_88%,var(--bg))] p-2 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--hairline)_8%,transparent)] sm:p-2.5 pointer-events-none select-none"
+      style={style}
+      aria-hidden
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.4]"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            -14deg,
+            transparent 0px,
+            transparent 4px,
+            color-mix(in srgb, var(--fg-muted) 12%, transparent) 4px,
+            color-mix(in srgb, var(--fg-muted) 12%, transparent) 6px
+          )`,
+        }}
+        aria-hidden
+      />
+      <span className="relative z-[1] min-w-0">
+        <span
+          className="mb-0.5 block font-mono text-[0.52rem] font-medium uppercase leading-none tracking-[0.14em] sm:text-[0.55rem]"
+          style={{ color: "color-mix(in srgb, var(--fg-muted) 55%, transparent)" }}
+        >
+          AUX
+        </span>
+        <span
+          className="font-mono text-[0.9rem] font-bold tabular-nums leading-none tracking-tight sm:text-[1.05rem]"
+          style={{
+            color: "color-mix(in srgb, var(--fg-muted) 42%, var(--secondary))",
+            textShadow: "0 1px 0 color-mix(in srgb, var(--bg) 55%, transparent)",
+          }}
+        >
+          {String(n).padStart(2, "0")}
+        </span>
+      </span>
+      <span
+        className="relative z-[1] self-end font-mono text-[0.48rem] font-bold uppercase leading-none tracking-[0.2em] sm:text-[0.52rem]"
+        style={{ color: "color-mix(in srgb, var(--fg-muted) 50%, var(--bg))" }}
+      >
+        SYN
+      </span>
+    </div>
+  );
+}
+
 export default function WorksPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -191,6 +303,12 @@ export default function WorksPageClient() {
   const tutorialRevealConsumedRef = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
   const worksCoreCatalogRootRef = useRef<HTMLDivElement>(null);
+  const legendTapCountRef = useRef(0);
+  const legendTapResetTidRef = useRef<number | null>(null);
+
+  const [hundredBulkVisible, setHundredBulkVisible] = useState(false);
+  const [playHundredReveal, setPlayHundredReveal] = useState(false);
+  const [hundredRevealGen, setHundredRevealGen] = useState(0);
 
   const tutorialJudgment = mounted ? judgments[0] : undefined;
   const tutorialDone = tutorialJudgment !== undefined && tutorialJudgment !== "undecided";
@@ -202,6 +320,8 @@ export default function WorksPageClient() {
       queueMicrotask(() => {
         setGridRevealComplete(false);
         setPlayGridReveal(false);
+        setHundredBulkVisible(false);
+        setPlayHundredReveal(false);
       });
       return;
     }
@@ -252,55 +372,25 @@ export default function WorksPageClient() {
     });
   }, [mounted, tutorialDone]);
 
-  /** チュートリアル直後のグリッド同期演出中、カタログ下端までゆっくりスクロールしてウェーブ全体を見せる */
+  const catalogRevealScrollActive = playGridReveal || playHundredReveal;
+  useWorksCatalogRevealScroll(worksCoreCatalogRootRef, catalogRevealScrollActive);
+
   useEffect(() => {
-    if (!playGridReveal || typeof window === "undefined") return undefined;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+    if (!playHundredReveal) return undefined;
+    if (typeof window === "undefined") return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      queueMicrotask(() => setPlayHundredReveal(false));
+      return undefined;
+    }
+    const tid = window.setTimeout(() => setPlayHundredReveal(false), 2320);
+    return () => window.clearTimeout(tid);
+  }, [playHundredReveal]);
 
-    let cancelled = false;
-    let scrollRaf = 0;
-
-    const setup = () => {
-      if (cancelled) return;
-      const root = worksCoreCatalogRootRef.current;
-      if (!root) return;
-
-      const yStart = Math.max(0, root.getBoundingClientRect().top + window.scrollY - 52);
-      window.scrollTo({ top: yStart, behavior: "instant" });
-
-      const bottom = root.getBoundingClientRect().bottom + window.scrollY;
-      const doc = document.documentElement;
-      const maxScroll = Math.max(0, (doc?.scrollHeight ?? 0) - window.innerHeight);
-      const yEnd = Math.min(maxScroll, Math.max(yStart, bottom - window.innerHeight + 80));
-
-      if (yEnd <= yStart + 40) return;
-
-      const durationMs = 1520;
-      const t0 = performance.now();
-      const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-      const tick = (now: number) => {
-        if (cancelled) return;
-        const u = Math.min(1, (now - t0) / durationMs);
-        window.scrollTo(0, yStart + (yEnd - yStart) * easeInOutCubic(u));
-        if (u < 1) scrollRaf = window.requestAnimationFrame(tick);
-      };
-      scrollRaf = window.requestAnimationFrame(tick);
-    };
-
-    let innerBoot = 0;
-    const outerBoot = window.requestAnimationFrame(() => {
-      if (cancelled) return;
-      innerBoot = window.requestAnimationFrame(setup);
-    });
-
+  useEffect(() => {
     return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(outerBoot);
-      window.cancelAnimationFrame(innerBoot);
-      window.cancelAnimationFrame(scrollRaf);
+      if (legendTapResetTidRef.current !== null) window.clearTimeout(legendTapResetTidRef.current);
     };
-  }, [playGridReveal]);
+  }, []);
 
   /** セル出現ウェーブ — Android は振動、iPhone Web はチュートリアル確定時に prime した Audio のクリック列 */
   useEffect(() => {
@@ -392,6 +482,35 @@ export default function WorksPageClient() {
     }
   }, [judgments, secretMounted, secretUnlocked]);
 
+  const onAppraisalHeaderPointerDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (!tutorialDone) return;
+      if (playGridReveal || playHundredReveal) return;
+      if (typeof window === "undefined") return;
+
+      if (legendTapResetTidRef.current !== null) {
+        window.clearTimeout(legendTapResetTidRef.current);
+        legendTapResetTidRef.current = null;
+      }
+
+      legendTapCountRef.current += 1;
+      if (legendTapCountRef.current >= 6) {
+        legendTapCountRef.current = 0;
+        setHundredBulkVisible(true);
+        setHundredRevealGen((g) => g + 1);
+        setPlayHundredReveal(true);
+        return;
+      }
+
+      legendTapResetTidRef.current = window.setTimeout(() => {
+        legendTapCountRef.current = 0;
+        legendTapResetTidRef.current = null;
+      }, 1400);
+    },
+    [tutorialDone, playGridReveal, playHundredReveal],
+  );
+
   const judged = mounted ? countJudgedInCatalog(catalog, judgments) : 0;
   const authentic = mounted
     ? catalog.filter((w) => (judgments[w.id] ?? "undecided") === "authentic").length
@@ -414,7 +533,10 @@ export default function WorksPageClient() {
       <div className="pointer-events-none fixed inset-0 -z-10 grid-backdrop opacity-70" aria-hidden />
 
       <section className="mb-6 flex-1">
-        <div className="mb-4 flex flex-col gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:flex-row sm:items-end sm:justify-between sm:gap-2">
+        <div
+          className="mb-4 flex flex-col gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:flex-row sm:items-end sm:justify-between sm:gap-2 select-none touch-manipulation"
+          onPointerDown={onAppraisalHeaderPointerDown}
+        >
           <h2 className="flex items-center gap-2 font-display text-sm font-bold tracking-tighter uppercase">
             <span className="h-3 w-1 bg-[color:var(--primary)]" />
             Appraisal Grid
@@ -598,6 +720,27 @@ export default function WorksPageClient() {
               <div className="grid w-full max-w-[6.5rem] grid-cols-1 gap-1.5 sm:gap-2">
                 {secretWorks.map((work) => (
                   <WorkCatalogCell key={work.id} work={work} mounted={mounted} judgments={judgments} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {hundredBulkVisible ? (
+            <div
+              key={`works-hundred-bulk-${hundredRevealGen}`}
+              role="presentation"
+              className={`works-core-phase works-hundred-bulk scroll-mt-3 space-y-2 border-t border-[color:color-mix(in_srgb,var(--surface-high)_35%,transparent)] pt-4 ${playHundredReveal ? "works-catalog-reveal-play works-tutorial-lineup" : ""}`}
+              aria-hidden
+            >
+              <div className="works-hundred-bulk-title-row flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="font-display text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[color:var(--secondary)]">
+                  拡張同期（演出）
+                </h3>
+                <span className="font-mono text-[0.52rem] text-[color:var(--fg-muted)]">100件 · AUX 01–100</span>
+              </div>
+              <div className="works-hundred-bulk-grid grid w-full grid-cols-4 gap-1.5 sm:gap-2">
+                {Array.from({ length: 100 }, (_, i) => (
+                  <WorkHundredBulkCell key={i} index={i} />
                 ))}
               </div>
             </div>

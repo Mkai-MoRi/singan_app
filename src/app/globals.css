@@ -1216,6 +1216,19 @@ html, body {
   animation-delay: 0.86s;
 }
 
+/* 見出し6タップ: 100セル一括出現（チュートリアル後スクロールと同系のウェーブ） */
+.works-hundred-bulk.works-catalog-reveal-play .works-hundred-bulk-title-row {
+  animation: works-catalog-header-in 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.03s;
+}
+
+.works-hundred-bulk.works-catalog-reveal-play.works-tutorial-lineup .works-hundred-bulk-grid > * {
+  transform-origin: center center;
+  transform-style: flat;
+  animation: works-catalog-cell-lineup 0.64s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.06s + var(--hundred-stagger, 0) * 0.011s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .works-catalog-reveal-play.works-core-catalog-root {
     perspective: none;
@@ -1244,6 +1257,14 @@ html, body {
   }
 
   .works-catalog-reveal-play .works-core-phase-title-row {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .works-hundred-bulk.works-catalog-reveal-play .works-hundred-bulk-title-row,
+  .works-hundred-bulk.works-catalog-reveal-play.works-tutorial-lineup .works-hundred-bulk-grid > * {
     animation: none !important;
     opacity: 1;
     transform: none;
