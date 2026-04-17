@@ -65,8 +65,8 @@ export default function AppChrome({ children }: { children: ReactNode }) {
   const worksTabActive = onWorksIndex || onJudge;
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <div className="flex flex-1 flex-col pt-[env(safe-area-inset-top,0px)] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 basis-0 flex-col pt-[env(safe-area-inset-top,0px)] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
         {children}
       </div>
 

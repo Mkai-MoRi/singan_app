@@ -48,7 +48,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&display=swap"
         />
       </head>
-      <body className="relative flex min-h-dvh flex-col">
+      <body className="relative flex h-dvh min-h-0 flex-col">
         <div className="noise-overlay" aria-hidden="true" />
         <AppChrome>{children}</AppChrome>
       </body>

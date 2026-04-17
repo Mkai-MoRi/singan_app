@@ -637,10 +637,10 @@ export default function CameraPageClient() {
         }
       `}</style>
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
+      <div className="relative flex min-h-0 min-h-full flex-1 basis-0 flex-col overflow-hidden bg-black">
 
-        {/* ── ファインダー（表示領域を縦いっぱい） ─────────────────────────── */}
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* ── ファインダー（ナビ上のスロットいっぱいまで縦に伸ばす） ───────── */}
+        <div className="relative min-h-0 min-h-full flex-1 basis-0 overflow-hidden">
           <video
             ref={videoRef}
             autoPlay
