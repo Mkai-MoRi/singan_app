@@ -19,6 +19,8 @@ import { setTutorialRevealIntent } from "@/lib/tutorialRevealIntent";
 import { clearWorksReturnSwipe, setWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
 const SWIPE_THRESHOLD = 88;
+/** フェーズロック案内カードの水平ドラッグ上限（px） */
+const LOCKED_CARD_MAX_DRAG = 168;
 
 /** 本番一問目（CASE_01）の作品画像 — チュートリアル（CASE_00）の次 */
 const CASE_01_HERO = "/works/case-01-hero.png";
@@ -45,17 +47,16 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   const draggingRef = useRef(false);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [lockedDragX, setLockedDragX] = useState(0);
+  const [lockedDragging, setLockedDragging] = useState(false);
+  const lockedStartXRef = useRef(0);
+  const lockedDragXRef = useRef(0);
+  const lockedDraggingRef = useRef(false);
+
   useEffect(() => {
     if (id === 21 && !secretMounted) return;
     if (!work) router.replace("/works");
   }, [id, secretMounted, work, router]);
-
-  useEffect(() => {
-    if (!mounted || !work) return;
-    if (id >= 1 && id <= 20 && !canAccessCatalogWork(id, judgments)) {
-      router.replace("/works");
-    }
-  }, [mounted, work, id, judgments, router]);
 
   useEffect(() => {
     return () => {
@@ -68,10 +69,14 @@ export default function JudgeWorkClient({ id }: { id: number }) {
     commitTimerRef.current = null;
     dragXRef.current = 0;
     draggingRef.current = false;
+    lockedDragXRef.current = 0;
+    lockedDraggingRef.current = false;
     queueMicrotask(() => {
       setFlyDir(null);
       setDragX(0);
       setIsDragging(false);
+      setLockedDragX(0);
+      setLockedDragging(false);
     });
   }, [id]);
 
@@ -184,6 +189,61 @@ export default function JudgeWorkClient({ id }: { id: number }) {
     setDragX(0);
   }, []);
 
+  const onLockedPanelPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const el = e.target as HTMLElement | null;
+    if (el?.closest("summary, button, a")) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
+    lockedStartXRef.current = e.clientX;
+    lockedDragXRef.current = 0;
+    lockedDraggingRef.current = true;
+    setLockedDragging(true);
+    setLockedDragX(0);
+  }, []);
+
+  const onLockedPanelPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!lockedDraggingRef.current) return;
+    const dx = e.clientX - lockedStartXRef.current;
+    const clamped = Math.max(-LOCKED_CARD_MAX_DRAG, Math.min(LOCKED_CARD_MAX_DRAG, dx));
+    lockedDragXRef.current = clamped;
+    setLockedDragX(clamped);
+  }, []);
+
+  const onLockedPanelPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!lockedDraggingRef.current) return;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* noop */
+    }
+    lockedDraggingRef.current = false;
+    setLockedDragging(false);
+    lockedDragXRef.current = 0;
+    setLockedDragX(0);
+  }, []);
+
+  const onLockedPanelPointerCancel = useCallback(() => {
+    if (!lockedDraggingRef.current) return;
+    lockedDraggingRef.current = false;
+    setLockedDragging(false);
+    lockedDragXRef.current = 0;
+    setLockedDragX(0);
+  }, []);
+
+  const onLockedPanelLostPointerCapture = useCallback(() => {
+    if (!lockedDraggingRef.current) return;
+    lockedDraggingRef.current = false;
+    setLockedDragging(false);
+    lockedDragXRef.current = 0;
+    setLockedDragX(0);
+  }, []);
+
   if (id === 21 && !secretMounted) {
     return (
       <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col items-center justify-center px-3 py-12">
@@ -193,6 +253,114 @@ export default function JudgeWorkClient({ id }: { id: number }) {
   }
 
   if (!work) return null;
+
+  const phaseLocked =
+    mounted && id >= 1 && id <= 20 && !canAccessCatalogWork(id, judgments);
+
+  if (phaseLocked) {
+    const needP1 = !isCorePhase1Complete(judgments);
+    const needP2 =
+      id >= 16 && isCorePhase1Complete(judgments) && !isCorePhase2Complete(judgments);
+    const hint = needP1
+      ? "先に CASE 01〜05 の鑑定をすべて確定すると、次の段階が解放されます。"
+      : needP2
+        ? "先に CASE 06〜15 の鑑定をすべて確定すると、最終段階が解放されます。"
+        : "この枠はまだ鑑定できません。一覧の順に進めてください。";
+
+    const lockedPull = Math.min(Math.abs(lockedDragX) / SWIPE_THRESHOLD, 1.35);
+    const lockedShowR = Math.max(0, lockedDragX / SWIPE_THRESHOLD);
+    const lockedShowL = Math.max(0, -lockedDragX / SWIPE_THRESHOLD);
+
+    return (
+      <main className="relative z-0 mx-auto flex min-h-0 max-w-lg flex-1 flex-col gap-4 px-4 pb-10 pt-4">
+        <button
+          type="button"
+          onClick={() => router.push("/works")}
+          className="self-start py-2 text-[0.65rem] font-bold tracking-widest text-[color:var(--fg-muted)] transition-colors hover:text-[color:var(--secondary)]"
+        >
+          ← 一覧
+        </button>
+
+        <p className="px-0.5 text-center text-[0.6rem] font-bold tracking-widest text-[color:var(--fg-muted)]">
+          カードを左右に動かして確認できます（鑑定は解放後に可能）
+        </p>
+
+        <div className="relative flex min-h-0 flex-1 flex-col justify-center py-2">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-[8%] z-0 flex justify-between px-0.5"
+            aria-hidden
+          >
+            <div
+              className="w-[26%] max-w-[6.5rem] rounded-r-2xl border border-[rgba(91,225,71,0.22)] bg-gradient-to-r from-[rgba(25,55,30,0.45)] to-transparent transition-opacity duration-75"
+              style={{ opacity: 0.04 + lockedShowL * 0.75 }}
+            />
+            <div
+              className="w-[26%] max-w-[6.5rem] rounded-l-2xl border border-[rgba(255,120,140,0.22)] bg-gradient-to-l from-[rgba(55,28,32,0.45)] to-transparent transition-opacity duration-75"
+              style={{ opacity: 0.04 + lockedShowR * 0.75 }}
+            />
+          </div>
+
+          <div
+            role="region"
+            aria-label="解放前の作品概要（ドラッグで動かせます）"
+            className="relative z-10 cursor-grab touch-none select-none active:cursor-grabbing"
+            style={{
+              transform: `translateX(${lockedDragX}px) rotate(${lockedDragX * 0.045}deg)`,
+              transition: lockedDragging
+                ? "none"
+                : "transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1)",
+              touchAction: "none",
+              boxShadow: [
+                "0 1px 0 rgba(255,255,255,0.05) inset",
+                "0 18px 40px rgba(0,0,0,0.42)",
+                ...(lockedShowR > 0.02
+                  ? [`0 0 ${24 + lockedPull * 32}px rgba(255,100,130,${lockedShowR * 0.42})`]
+                  : []),
+                ...(lockedShowL > 0.02
+                  ? [`0 0 ${24 + lockedPull * 32}px rgba(91,225,71,${lockedShowL * 0.38})`]
+                  : []),
+              ].join(", "),
+            } as CSSProperties}
+            onPointerDown={onLockedPanelPointerDown}
+            onPointerMove={onLockedPanelPointerMove}
+            onPointerUp={onLockedPanelPointerUp}
+            onPointerCancel={onLockedPanelPointerCancel}
+            onLostPointerCapture={onLockedPanelLostPointerCapture}
+          >
+            <div className="border border-[color:color-mix(in_srgb,var(--outline-variant)_22%,transparent)] bg-[color:var(--surface-low)] p-4 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--hairline)_10%,transparent)]">
+              <p className="font-mono text-[0.62rem] uppercase tracking-wide text-[color:var(--fg-muted)]">{work.caseName}</p>
+              <h1 className="mt-2 font-display text-xl font-bold leading-tight tracking-tight text-[color:var(--primary)]">{work.title}</h1>
+              <p className="mt-2 font-mono text-[0.7rem] leading-relaxed text-[color:var(--secondary)]">{work.meta}</p>
+              <p className="mt-4 text-[0.75rem] leading-relaxed text-[color:var(--fg-muted)]">{hint}</p>
+              {work.caption ? (
+                <details className="mt-4 border-t border-[color:var(--surface-high)]/45 pt-3 [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-mono text-[0.62rem] font-medium uppercase tracking-wide text-[color:var(--fg-muted)] marker:content-none">
+                    <span>キャプションを表示</span>
+                    <span className="material-symbols-outlined text-base opacity-80" style={{ fontVariationSettings: "'FILL' 0" }} aria-hidden>
+                      expand_more
+                    </span>
+                  </summary>
+                  <div className="mt-2 border-t border-[color:var(--surface-high)]/35 pt-2">
+                    <p className="whitespace-pre-line text-left text-[0.72rem] font-normal normal-case leading-relaxed text-[color:var(--secondary)]">
+                      {work.caption}
+                    </p>
+                  </div>
+                </details>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => router.push("/works")}
+          className="mt-2 w-full border border-[color:var(--primary)]/45 bg-[color:var(--primary)]/10 py-3 font-mono text-[0.7rem] font-bold uppercase tracking-wider text-[color:var(--primary)] transition-colors hover:bg-[color:var(--primary)]/16"
+        >
+          一覧へ戻る
+        </button>
+      </main>
+    );
+  }
 
   const activeDragX = flyDir === "right" ? 680 : flyDir === "left" ? -680 : dragX;
   const rotate = flyDir === "right" ? 18 : flyDir === "left" ? -18 : dragX * 0.05;

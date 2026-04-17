@@ -3,6 +3,7 @@ import { clearJudgments } from "@/lib/judgmentsStorage";
 import { saveOperatorName } from "@/lib/operatorStorage";
 import { savePracticeCaseUnlocked } from "@/lib/practiceCaseStorage";
 import { saveSecretCaseUnlocked } from "@/lib/secretCaseStorage";
+import { clearSummarySearchPins } from "@/lib/summarySearchPinsStorage";
 import { clearWorksReturnSwipe } from "@/lib/worksReturnSwipe";
 
 /** クライアントの各フックがストレージと同期するための通知 */
@@ -29,6 +30,7 @@ export function resetTerminal(): void {
   saveSecretCaseUnlocked(false);
   savePracticeCaseUnlocked(false);
   clearWorksReturnSwipe();
+  clearSummarySearchPins();
   stripJudgmentsShareParam();
   window.dispatchEvent(new Event(TERMINAL_RESET_EVENT));
 }
