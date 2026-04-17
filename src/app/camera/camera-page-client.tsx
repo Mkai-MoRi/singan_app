@@ -48,6 +48,203 @@ function roundRectPath(
   ctx.closePath();
 }
 
+type SavedOverlayParams = {
+  active: boolean;
+  hasTimer: boolean;
+  recording: boolean;
+  elapsedSec: number;
+  deadlineMs: number | null;
+  sessionStartMs: number | null;
+  now: number;
+  useFrontCamera: boolean;
+  zoomLevel: number;
+  torchOn: boolean;
+  torchSupported: boolean;
+  recordSetupError: string | null;
+};
+
+function hudSquareButton(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, s: number, sc: number,
+  kind: "default" | "active" | "dim" | "record" | "recordOn"
+) {
+  ctx.beginPath();
+  roundRectPath(ctx, x, y, s, s, 2 * sc);
+  if (kind === "active") {
+    ctx.fillStyle = G;
+    ctx.strokeStyle = G;
+  } else if (kind === "dim") {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeStyle = "rgba(164,228,0,0.12)";
+  } else if (kind === "recordOn") {
+    ctx.fillStyle = "rgba(147,0,10,0.96)";
+    ctx.strokeStyle = "rgba(255,68,68,0.45)";
+  } else if (kind === "record") {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeStyle = "rgba(255,68,68,0.28)";
+  } else {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeStyle = "rgba(164,228,0,0.30)";
+  }
+  ctx.lineWidth = Math.max(1, sc);
+  ctx.fill();
+  ctx.stroke();
+}
+
+/** 保存画像用: 画面上の操作ボタン列＋シャッター */
+function drawSavedControls(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  sc: number,
+  p: SavedOverlayParams,
+  telX: number,
+  telY: number,
+  telW: number,
+  telH: number
+) {
+  const btn = 40 * sc;
+  const gap = 12 * sc;
+  const edge = 10 * sc;
+
+  // ── 左: FLASH ボタン ──
+  const flashX = edge;
+  const flashY = telY + telH + gap;
+  const flashKind = !p.torchSupported ? "dim" : p.torchOn ? "active" : "default";
+  hudSquareButton(ctx, flashX, flashY, btn, sc, flashKind);
+  ctx.strokeStyle = p.torchOn && p.torchSupported ? "#000" : G;
+  ctx.lineWidth = 2 * sc;
+  ctx.lineCap = "round";
+  const fx = flashX + btn / 2;
+  const fy = flashY + btn / 2;
+  for (let i = -2; i <= 2; i++) {
+    const a = (i * Math.PI) / 10;
+    ctx.beginPath();
+    ctx.moveTo(fx + Math.cos(a) * 4 * sc, fy + Math.sin(a) * 4 * sc);
+    ctx.lineTo(fx + Math.cos(a) * 12 * sc, fy + Math.sin(a) * 12 * sc);
+    ctx.stroke();
+  }
+  ctx.font = `${5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.45)";
+  ctx.textAlign = "center";
+  ctx.fillText("FLASH", flashX + btn / 2, flashY + btn + 10 * sc);
+
+  // ── 右: カメラ向き / ズーム / 録画 ──
+  const rx = w - edge - btn;
+  const blockH = btn + 14 * sc + gap;
+  const yTop = h / 2 - (3 * blockH) / 2;
+
+  // cameraswitch
+  hudSquareButton(ctx, rx, yTop, btn, sc, p.useFrontCamera ? "active" : "default");
+  ctx.strokeStyle = p.useFrontCamera ? "#000" : G;
+  ctx.lineWidth = 1.8 * sc;
+  const cx = rx + btn / 2;
+  const cy = yTop + btn / 2;
+  ctx.strokeRect(cx - 7 * sc, cy - 5 * sc, 8 * sc, 10 * sc);
+  ctx.strokeRect(cx - 1 * sc, cy - 5 * sc, 8 * sc, 10 * sc);
+  ctx.beginPath();
+  ctx.moveTo(cx + 10 * sc, cy);
+  ctx.lineTo(cx + 14 * sc, cy - 3 * sc);
+  ctx.lineTo(cx + 14 * sc, cy + 3 * sc);
+  ctx.closePath();
+  ctx.fillStyle = p.useFrontCamera ? "#000" : G;
+  ctx.fill();
+  ctx.font = `${5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.45)";
+  ctx.textAlign = "center";
+  ctx.fillText(p.useFrontCamera ? "FRONT" : "REAR", cx, yTop + btn + 10 * sc);
+
+  // zoom
+  const yZ = yTop + blockH;
+  hudSquareButton(ctx, rx, yZ, btn, sc, p.zoomLevel === 2 ? "active" : "default");
+  const zx = rx + btn / 2;
+  const zy = yZ + btn / 2;
+  ctx.strokeStyle = p.zoomLevel === 2 ? "#000" : G;
+  ctx.lineWidth = 2 * sc;
+  ctx.beginPath();
+  ctx.arc(zx - 2 * sc, zy - 2 * sc, 7 * sc, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(zx + 3 * sc, zy + 3 * sc);
+  ctx.lineTo(zx + 10 * sc, zy + 10 * sc);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(164,228,0,0.45)";
+  ctx.fillText(`${p.zoomLevel}x ZOOM`, zx, yZ + btn + 10 * sc);
+
+  // record
+  const yR = yTop + 2 * blockH;
+  hudSquareButton(ctx, rx, yR, btn, sc, p.recording ? "recordOn" : "record");
+  const rxm = rx + btn / 2;
+  const rym = yR + btn / 2;
+  ctx.fillStyle = "#fff";
+  if (p.recording) {
+    ctx.fillRect(rxm - 5 * sc, rym - 5 * sc, 10 * sc, 10 * sc);
+  } else {
+    ctx.beginPath();
+    ctx.arc(rxm, rym, 7 * sc, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.font = `${5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.45)";
+  ctx.fillText(p.recording ? "STOP" : "RECORD", rxm, yR + btn + 10 * sc);
+
+  if (p.recordSetupError) {
+    ctx.font = `${4.2 * sc}px "Space Mono", monospace`;
+    ctx.fillStyle = "rgba(255,68,68,0.92)";
+    const words = p.recordSetupError;
+    const maxW = btn + 20 * sc;
+    let line = "";
+    let ly = yR + btn + 22 * sc;
+    for (const ch of words) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, rxm, ly);
+        line = ch;
+        ly += 5.5 * sc;
+      } else {
+        line = test;
+      }
+    }
+    if (line) ctx.fillText(line, rxm, ly);
+  }
+
+  // ── 下部シャッター（UI の大丸に相当） ──
+  const stripH = 22 * sc;
+  const shCy = h - stripH - 28 * sc - 8 * sc;
+  const shCx = w / 2;
+  const R0 = 52 * sc;
+  const R1 = 40 * sc;
+  const R2 = 30 * sc;
+  ctx.beginPath();
+  ctx.arc(shCx, shCy, R0, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(164,228,0,0.15)";
+  ctx.lineWidth = 1 * sc;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(shCx, shCy, R1, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(164,228,0,0.35)";
+  ctx.lineWidth = 2 * sc;
+  ctx.stroke();
+  const g = ctx.createRadialGradient(shCx, shCy - 8 * sc, 2 * sc, shCx, shCy, R2);
+  g.addColorStop(0, "#c7ff5c");
+  g.addColorStop(1, G);
+  ctx.beginPath();
+  ctx.arc(shCx, shCy, R2, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.22)";
+  ctx.lineWidth = 1 * sc;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(shCx, shCy, 11 * sc, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(shCx, shCy, 6 * sc, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fill();
+}
+
 // ── canvas オーバーレイ描画（保存画像＝画面上のファインダーHUDに揃える） ───────
 
 function drawScanlinePattern(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -107,16 +304,6 @@ function drawFrameCorners(
     ctx.stroke();
   }
 }
-
-type SavedOverlayParams = {
-  active: boolean;
-  hasTimer: boolean;
-  recording: boolean;
-  elapsedSec: number;
-  deadlineMs: number | null;
-  sessionStartMs: number | null;
-  now: number;
-};
 
 function drawSavedViewOverlay(ctx: CanvasRenderingContext2D, w: number, h: number, p: SavedOverlayParams) {
   const sc = Math.max(1, w / 390);
@@ -250,6 +437,8 @@ function drawSavedViewOverlay(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText(isoLabel, w - pad, h - 8 * sc);
   ctx.fillStyle = "rgba(199,255,92,0.88)";
   ctx.fillText("1/60", w - pad - isoW - 4 * sc, h - 8 * sc);
+
+  drawSavedControls(ctx, w, h, sc, p, telX, telY, telW, telH);
 }
 
 function drawTimerHud(
@@ -517,6 +706,11 @@ export default function CameraPageClient() {
       deadlineMs: d,
       sessionStartMs: s,
       now,
+      useFrontCamera,
+      zoomLevel,
+      torchOn,
+      torchSupported,
+      recordSetupError,
     });
 
     canvas.toBlob((blob) => {
@@ -529,7 +723,15 @@ export default function CameraPageClient() {
       flashTimerRef.current = setTimeout(() => setFlashing(false), 160);
       setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return objectUrl; });
     }, "image/png");
-  }, [recording, finderStartMs, useFrontCamera]);
+  }, [
+    recording,
+    finderStartMs,
+    useFrontCamera,
+    zoomLevel,
+    torchOn,
+    torchSupported,
+    recordSetupError,
+  ]);
 
   const discard = useCallback(() => {
     setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
