@@ -31,8 +31,8 @@ export function writeAppraisalDeadlineMs(deadlineMs: number): void {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(DEADLINE_KEY, String(deadlineMs));
-  } catch {
-    /* noop */
+  } catch (err) {
+    console.error("[appraisalSession] sessionStorage write failed (deadline):", err);
   }
 }
 
@@ -40,8 +40,8 @@ export function clearAppraisalDeadlineMs(): void {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.removeItem(DEADLINE_KEY);
-  } catch {
-    /* noop */
+  } catch (err) {
+    console.error("[appraisalSession] sessionStorage clear failed (deadline):", err);
   }
 }
 
@@ -61,8 +61,8 @@ export function writeAppraisalSessionStartMs(startMs: number): void {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(SESSION_START_KEY, String(startMs));
-  } catch {
-    /* noop */
+  } catch (err) {
+    console.error("[appraisalSession] sessionStorage write failed (sessionStart):", err);
   }
 }
 
@@ -70,8 +70,8 @@ export function clearAppraisalSessionStartMs(): void {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.removeItem(SESSION_START_KEY);
-  } catch {
-    /* noop */
+  } catch (err) {
+    console.error("[appraisalSession] sessionStorage clear failed (sessionStart):", err);
   }
 }
 

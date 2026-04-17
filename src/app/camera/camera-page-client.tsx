@@ -21,6 +21,31 @@ function formatRemain(totalSec: number): string {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
+// Chrome 99+ / Safari 15.4+ / Firefox 112+ 未満向けフォールバック
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, w, h, r);
+    return;
+  }
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
 /** canvas に HUD（タイマーバー＋テキスト）を描画 */
 function drawHudOnCanvas(
   ctx: CanvasRenderingContext2D,
@@ -86,7 +111,7 @@ function drawHudOnCanvas(
 
   ctx.fillStyle = "rgba(42,42,42,0.9)";
   ctx.beginPath();
-  ctx.roundRect(pad, barY, barW, barH, radius);
+  roundRectPath(ctx, pad, barY, barW, barH, radius);
   ctx.fill();
 
   // Bar fill — interpolate --primary → --error as time runs out
@@ -97,7 +122,7 @@ function drawHudOnCanvas(
     const b = Math.round(201 + (171 - 201) * heat);
     ctx.fillStyle = `rgb(255,${g},${b})`;
     ctx.beginPath();
-    ctx.roundRect(pad, barY, barW * fillRatio, barH, radius);
+    roundRectPath(ctx, pad, barY, barW * fillRatio, barH, radius);
     ctx.fill();
   }
 
@@ -110,10 +135,33 @@ function drawHudOnCanvas(
   ctx.stroke();
 }
 
+function cameraErrorMessage(err: unknown): string {
+  const name = err instanceof DOMException ? err.name : "";
+  switch (name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "カメラへのアクセスが許可されていません。設定からカメラ権限を許可してください。";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "カメラが見つかりません。カメラが接続されているか確認してください。";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "カメラが他のアプリで使用中です。他のアプリを閉じて再度お試しください。";
+    case "SecurityError":
+      return "セキュリティエラーです。HTTPS 環境でアクセスしてください。";
+    case "TypeError":
+      return "このブラウザはカメラに対応していません。最新のブラウザをご使用ください。";
+    default:
+      return "カメラの起動に失敗しました。ブラウザを再起動してお試しください。";
+  }
+}
+
 export default function CameraPageClient() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -127,20 +175,59 @@ export default function CameraPageClient() {
   // カメラ起動
   useEffect(() => {
     let cancelled = false;
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false })
-      .then((stream) => {
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch((err) => {
-        if (!cancelled)
-          setCameraError(err instanceof Error ? err.message : "カメラへのアクセスが拒否されました");
-      });
+
+    function startStream(constraints: MediaStreamConstraints, fallback = false) {
+      navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then((stream) => {
+          if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            // 15 秒以内に映像が来なければエラー表示
+            cameraTimeoutRef.current = setTimeout(() => {
+              if (!cancelled) setCameraError("カメラの映像が取得できませんでした。ブラウザを再起動してお試しください。");
+            }, 15000);
+          }
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          // OverconstrainedError: 背面カメラ制約を外してリトライ
+          if (
+            !fallback &&
+            err instanceof DOMException &&
+            (err.name === "OverconstrainedError" || err.name === "ConstraintNotSatisfiedError")
+          ) {
+            startStream({ video: true, audio: false }, true);
+            return;
+          }
+          setCameraError(cameraErrorMessage(err));
+        });
+    }
+
+    startStream({ video: { facingMode: { ideal: "environment" } }, audio: false });
+
     return () => {
       cancelled = true;
+      if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  // フラッシュタイマーのアンマウント時クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    };
+  }, []);
+
+  // プレビュー URL のアンマウント時クリーンアップ
+  useEffect(() => {
+    return () => {
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
     };
   }, []);
 
@@ -179,7 +266,10 @@ export default function CameraPageClient() {
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setCameraError("撮影処理に失敗しました（Canvas が使用できません）。ブラウザを再起動してお試しください。");
+      return;
+    }
 
     // ① ビデオフレーム
     ctx.drawImage(video, 0, 0, w, h);
@@ -191,16 +281,25 @@ export default function CameraPageClient() {
       drawHudOnCanvas(ctx, w, h, d, s, Date.now());
     }
 
-    // ③ フラッシュ
-    setFlashing(true);
-    setTimeout(() => setFlashing(false), 160);
-
-    // ④ プレビュー URL 生成
+    // ③ プレビュー URL 生成（成功時にのみフラッシュ）
     canvas.toBlob((blob) => {
-      if (!blob) return;
+      if (!blob) {
+        setCameraError("画像の生成に失敗しました。もう一度シャッターを押してください。");
+        return;
+      }
+      let objectUrl: string;
+      try {
+        objectUrl = URL.createObjectURL(blob);
+      } catch {
+        setCameraError("画像の表示に失敗しました。もう一度シャッターを押してください。");
+        return;
+      }
+      setFlashing(true);
+      if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setFlashing(false), 160);
       setPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(blob);
+        return objectUrl;
       });
     }, "image/png");
   }, []);
@@ -211,6 +310,17 @@ export default function CameraPageClient() {
       return null;
     });
   }, []);
+
+  // iOS Safari で <a download> が動作しないケースに対応した保存処理
+  const downloadImage = useCallback(() => {
+    if (!previewUrl) return;
+    const a = document.createElement("a");
+    a.href = previewUrl;
+    a.download = `singan-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [previewUrl]);
 
   if (cameraError) {
     return (
@@ -235,7 +345,11 @@ export default function CameraPageClient() {
           autoPlay
           playsInline
           muted
-          onCanPlay={() => setCameraReady(true)}
+          onCanPlay={() => {
+            if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
+            setCameraReady(true);
+          }}
+          onError={() => setCameraError("カメラの映像を取得できませんでした。ブラウザを再起動してお試しください。")}
           className="h-full w-full object-cover"
         />
 
@@ -351,13 +465,13 @@ export default function CameraPageClient() {
             >
               撮り直す
             </button>
-            <a
-              href={previewUrl}
-              download={`singan-${Date.now()}.png`}
+            <button
+              type="button"
+              onClick={downloadImage}
               className="flex-1 bg-[color:var(--primary)] py-3 text-center font-mono text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[color:var(--on-primary)] transition-opacity hover:opacity-90"
             >
               端末に保存
-            </a>
+            </button>
           </div>
         </div>
       )}
