@@ -13,7 +13,6 @@ const G = "#a4e400";
 const G80 = "rgba(164,228,0,0.80)";
 const G50 = "rgba(164,228,0,0.50)";
 const G25 = "rgba(164,228,0,0.25)";
-const G12 = "rgba(164,228,0,0.12)";
 
 // ── ユーティリティ ──────────────────────────────────────────────────────────
 
@@ -195,9 +194,9 @@ export default function CameraPageClient() {
   const streamRef = useRef<MediaStream | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cameraStartRef = useRef<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
+  const isMountedRef = useRef(true);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -210,10 +209,13 @@ export default function CameraPageClient() {
   const [torchSupported, setTorchSupported] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [recording, setRecording] = useState(false);
+  const [recordSetupError, setRecordSetupError] = useState<string | null>(null);
+  const [finderStartMs, setFinderStartMs] = useState<number | null>(null);
 
   // カメラ起動
   useEffect(() => {
     let cancelled = false;
+    isMountedRef.current = true;
 
     function startStream(constraints: MediaStreamConstraints, fallback = false) {
       navigator.mediaDevices
@@ -247,7 +249,9 @@ export default function CameraPageClient() {
 
     return () => {
       cancelled = true;
+      isMountedRef.current = false;
       if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
+      mediaRecorderRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -285,9 +289,10 @@ export default function CameraPageClient() {
   const urgent = hasTimer && !expired && remainSec <= urgentCap;
 
   // タイムコード（カメラ起動からの経過秒）
-  const elapsedSec = cameraReady && cameraStartRef.current && clockMs
-    ? Math.floor((clockMs - cameraStartRef.current) / 1000)
-    : 0;
+  const elapsedSec =
+    cameraReady && finderStartMs !== null && clockMs !== null
+      ? Math.floor((clockMs - finderStartMs) / 1000)
+      : 0;
 
   // ── コールバック ──────────────────────────────────────────────────────────
 
@@ -343,6 +348,7 @@ export default function CameraPageClient() {
   }, [previewUrl]);
 
   const toggleTorch = useCallback(async () => {
+    if (!torchSupported) return;
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return;
     const newVal = !torchOn;
@@ -350,7 +356,7 @@ export default function CameraPageClient() {
       await track.applyConstraints({ advanced: [{ torch: newVal } as MediaTrackConstraintSet] });
       setTorchOn(newVal);
     } catch { /* デバイス非対応 */ }
-  }, [torchOn]);
+  }, [torchOn, torchSupported]);
 
   const toggleZoom = useCallback(async () => {
     const newZoom = zoomLevel === 1 ? 2 : 1;
@@ -358,9 +364,17 @@ export default function CameraPageClient() {
     if (track) {
       try {
         await track.applyConstraints({ advanced: [{ zoom: newZoom } as MediaTrackConstraintSet] });
+        if (videoRef.current) {
+          videoRef.current.style.transformOrigin = "center center";
+          videoRef.current.style.transform = "";
+        }
       } catch {
         // ハードウェアズーム非対応 → CSS ズームでフォールバック
-        if (videoRef.current) videoRef.current.style.transform = newZoom === 2 ? "scale(2)" : "scale(1)";
+        const v = videoRef.current;
+        if (v) {
+          v.style.transformOrigin = "center center";
+          v.style.transform = newZoom === 2 ? "scale(2)" : "";
+        }
       }
     }
     setZoomLevel(newZoom);
@@ -377,16 +391,23 @@ export default function CameraPageClient() {
       MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4" :
       MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" :
       "video/webm";
+    setRecordSetupError(null);
     let recorder: MediaRecorder;
     try {
       recorder = new MediaRecorder(streamRef.current, { mimeType });
     } catch {
-      return; // MediaRecorder 非対応
+      setRecordSetupError("この環境では録画を開始できません。");
+      return;
     }
     recordingChunksRef.current = [];
     recorder.ondataavailable = (e) => { if (e.data.size > 0) recordingChunksRef.current.push(e.data); };
     recorder.onstop = () => {
+      if (!isMountedRef.current) {
+        recordingChunksRef.current = [];
+        return;
+      }
       const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+      recordingChunksRef.current = [];
       const url = URL.createObjectURL(blob);
       const ext = mimeType.startsWith("video/mp4") ? "mp4" : "webm";
       const a = document.createElement("a");
@@ -449,7 +470,7 @@ export default function CameraPageClient() {
             autoPlay playsInline muted
             onCanPlay={() => {
               if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
-              cameraStartRef.current = Date.now();
+              setFinderStartMs(Date.now());
               setCameraReady(true);
             }}
             onError={() => setCameraError("カメラの映像を取得できませんでした。ブラウザを再起動してお試しください。")}
@@ -594,7 +615,7 @@ export default function CameraPageClient() {
                 {/* TELEMETRY */}
                 <div className="border-l-2 border-[#a4e400]/40 bg-black/55 px-2.5 py-2 backdrop-blur-sm">
                   <p className="mb-1.5 font-mono text-[0.38rem] uppercase tracking-[0.18em] text-[#a4e400]/50">TELEMETRY_DATA</p>
-                  {[["ALT", "104.2m"], ["VEL", "0.00ms"], ["TMP", "24.5°C"]].map(([k, v]) => (
+                  {[["ALT", "104.2m"], ["VEL", "0.00 m/s"], ["TMP", "24.5°C"]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-4 font-mono text-[0.52rem] text-[#a4e400]">
                       <span>{k}:</span><span>{v}</span>
                     </div>
@@ -603,9 +624,10 @@ export default function CameraPageClient() {
                 {/* フラッシュライト */}
                 <button
                   type="button"
+                  disabled={!torchSupported}
                   onClick={toggleTorch}
-                  className={`flex h-10 w-10 items-center justify-center transition-all active:scale-90 ${torchOn ? "bg-[#a4e400] text-black" : "bg-black/55 text-[#a4e400] border border-[#a4e400]/30"} ${!torchSupported ? "opacity-40 cursor-not-allowed" : ""}`}
-                  aria-label={torchOn ? "フラッシュオフ" : "フラッシュオン"}
+                  className={`flex h-10 w-10 items-center justify-center transition-all active:scale-90 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed ${torchOn ? "bg-[#a4e400] text-black" : "bg-black/55 text-[#a4e400] border border-[#a4e400]/30"}`}
+                  aria-label={torchSupported ? (torchOn ? "フラッシュオフ" : "フラッシュオン") : "この端末ではライトに未対応"}
                 >
                   <span className="material-symbols-outlined text-[18px]">flashlight_on</span>
                 </button>
@@ -646,6 +668,11 @@ export default function CameraPageClient() {
                 <p className="text-center font-mono text-[0.36rem] uppercase tracking-[0.14em] text-[#a4e400]/45">
                   {recording ? "STOP" : "RECORD"}
                 </p>
+                {recordSetupError && (
+                  <p className="max-w-[5.5rem] text-center font-mono text-[0.32rem] leading-snug text-[#ff4444]/90">
+                    {recordSetupError}
+                  </p>
+                )}
               </div>
             </>
           )}
