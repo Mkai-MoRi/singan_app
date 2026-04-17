@@ -48,66 +48,208 @@ function roundRectPath(
   ctx.closePath();
 }
 
-// ── canvas オーバーレイ描画 ─────────────────────────────────────────────────
+// ── canvas オーバーレイ描画（保存画像＝画面上のファインダーHUDに揃える） ───────
 
-function drawAppraisalOverlay(
+function drawScanlinePattern(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const step = 4;
+  ctx.fillStyle = "rgba(164,228,0,0.035)";
+  for (let y = 0; y < h; y += step * 2) {
+    ctx.fillRect(0, y + step, w, step);
+  }
+}
+
+function drawDotGridPattern(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const g = Math.max(22, Math.floor(Math.sqrt((w * h) / 1400)));
+  ctx.fillStyle = "rgba(164,228,0,0.09)";
+  for (let x = 0; x < w; x += g) {
+    for (let y = 0; y < h; y += g) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/** 画面 UI（w-[68%] aspect-[3/4] max-h-[55%]）と同じ幾何で中央枠を求める */
+function centerFrameRect(w: number, h: number): { tx: number; ty: number; tw: number; th: number } {
+  const maxTw = w * 0.68;
+  const maxTh = h * 0.55;
+  let tw = maxTw;
+  let th = tw * (4 / 3);
+  if (th > maxTh) {
+    th = maxTh;
+    tw = th * (3 / 4);
+  }
+  return { tx: (w - tw) / 2, ty: (h - th) / 2, tw, th };
+}
+
+function drawFrameCorners(
   ctx: CanvasRenderingContext2D,
-  w: number, h: number,
-  active: boolean
+  tx: number, ty: number, tw: number, th: number,
+  sc: number,
+  strong: boolean
 ) {
+  const L = 20 * sc;
+  const lw = 2 * sc;
+  ctx.strokeStyle = strong ? "rgba(164,228,0,0.80)" : "rgba(164,228,0,0.30)";
+  ctx.lineWidth = lw;
+  const corners: [number, number, number, number, number, number][] = [
+    [tx, ty + L, tx, ty, tx + L, ty],
+    [tx + tw - L, ty, tx + tw, ty, tx + tw, ty + L],
+    [tx, ty + th - L, tx, ty + th, tx + L, ty + th],
+    [tx + tw - L, ty + th, tx + tw, ty + th, tx + tw, ty + th - L],
+  ];
+  for (const [x1, y1, x2, y2, x3, y3] of corners) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.stroke();
+  }
+}
+
+type SavedOverlayParams = {
+  active: boolean;
+  hasTimer: boolean;
+  recording: boolean;
+  elapsedSec: number;
+  deadlineMs: number | null;
+  sessionStartMs: number | null;
+  now: number;
+};
+
+function drawSavedViewOverlay(ctx: CanvasRenderingContext2D, w: number, h: number, p: SavedOverlayParams) {
   const sc = Math.max(1, w / 390);
   const pad = 14 * sc;
 
-  // ビネット
+  drawScanlinePattern(ctx, w, h);
+  drawDotGridPattern(ctx, w, h);
+
   const vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.75);
   vig.addColorStop(0, "rgba(0,0,0,0)");
   vig.addColorStop(1, "rgba(0,0,0,0.55)");
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, w, h);
 
-  // 上部グラデーション
   const topG = ctx.createLinearGradient(0, 0, 0, 56 * sc);
   topG.addColorStop(0, "rgba(0,0,0,0.65)");
   topG.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = topG;
   ctx.fillRect(0, 0, w, 56 * sc);
 
-  // ヘッダーテキスト
   ctx.font = `700 ${7.5 * sc}px "Space Mono", monospace`;
   ctx.fillStyle = G80;
   ctx.textAlign = "left";
   ctx.fillText("DIAGNOSTIC_TERMINAL_V1.0", pad, 17 * sc);
   ctx.textAlign = "right";
-  ctx.fillStyle = active ? G80 : "rgba(164,228,0,0.30)";
-  ctx.fillText(active ? "鑑定中 · ANALYZING" : "STANDBY", w - pad, 17 * sc);
+  ctx.fillStyle = p.active ? G80 : "rgba(164,228,0,0.30)";
+  ctx.fillText(p.active ? "鑑定中 · ANALYZING" : "STANDBY", w - pad, 17 * sc);
   ctx.textAlign = "left";
 
-  // コーナーマーカー（4隅）
-  const cs = 18 * sc;
-  const cp = 20 * sc;
-  ctx.strokeStyle = active ? "rgba(164,228,0,0.70)" : "rgba(164,228,0,0.25)";
-  ctx.lineWidth = 2 * sc;
-  [
-    [cp, cp + cs, cp, cp, cp + cs, cp],
-    [w - cp - cs, cp, w - cp, cp, w - cp, cp + cs],
-    [cp, h - cp - cs, cp, h - cp, cp + cs, h - cp],
-    [w - cp - cs, h - cp, w - cp, h - cp, w - cp, h - cp - cs],
-  ].forEach(([x1, y1, x2, y2, x3, y3]) => {
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.stroke();
-  });
-
-  // センタースキャン枠
-  const tx = w * 0.14, tw = w * 0.72, th = tw * (4 / 3), ty = (h - th) / 2;
-  ctx.strokeStyle = active ? G25 : "rgba(164,228,0,0.10)";
-  ctx.lineWidth = 1;
+  const { tx, ty, tw, th } = centerFrameRect(w, h);
+  ctx.strokeStyle = p.active ? G25 : "rgba(164,228,0,0.10)";
+  ctx.lineWidth = 1 * sc;
   ctx.strokeRect(tx, ty, tw, th);
+  drawFrameCorners(ctx, tx, ty, tw, th, sc, p.hasTimer);
 
-  // 下部ラベル（枠内）
-  ctx.font = `${6 * sc}px "Space Mono", monospace`;
-  ctx.fillStyle = active ? "rgba(164,228,0,0.55)" : "rgba(164,228,0,0.18)";
-  ctx.textAlign = "center";
-  ctx.fillText(active ? "鑑定中 · ANALYZING" : "STANDBY", w / 2, ty + th - 8 * sc);
+  ctx.font = `${6.5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.55)";
   ctx.textAlign = "left";
+  ctx.fillText(p.hasTimer ? "[SYSTEM_ACTIVE]" : "[SYSTEM_READY]", tx, ty - 8 * sc);
+
+  ctx.font = `${5.5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.55)";
+  ctx.textAlign = "right";
+  const tid = p.hasTimer ? "SESSION_MATCH" : "NO_MATCH";
+  ctx.fillText(`TARGET_ID: ${tid}`, tx + tw, ty + th + 10 * sc);
+  ctx.fillText("SCAN_INTENSITY: 87%", tx + tw, ty + th + 18 * sc);
+
+  const midY = ty + th * 0.5;
+  const scanGrad = ctx.createLinearGradient(tx, midY, tx + tw, midY);
+  const hi = p.hasTimer ? "rgba(164,228,0,0.80)" : "rgba(164,228,0,0.30)";
+  scanGrad.addColorStop(0, "rgba(164,228,0,0)");
+  scanGrad.addColorStop(0.3, hi);
+  scanGrad.addColorStop(0.7, hi);
+  scanGrad.addColorStop(1, "rgba(164,228,0,0)");
+  ctx.fillStyle = scanGrad;
+  ctx.fillRect(tx + tw * 0.05, midY - 1 * sc, tw * 0.9, 2 * sc);
+
+  const cx = tx + tw / 2;
+  const cy = ty + th / 2;
+  const ch = 12 * sc;
+  ctx.strokeStyle = "rgba(164,228,0,0.40)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - ch);
+  ctx.lineTo(cx, cy + ch);
+  ctx.moveTo(cx - ch, cy);
+  ctx.lineTo(cx + ch, cy);
+  ctx.stroke();
+
+  ctx.font = `${6 * sc}px "Space Mono", monospace`;
+  ctx.textAlign = "center";
+  ctx.fillStyle = p.hasTimer ? "rgba(164,228,0,0.60)" : "rgba(164,228,0,0.22)";
+  ctx.fillText(
+    p.hasTimer ? "鑑定中 · ANALYZING" : "SESSION_NOT_STARTED",
+    cx,
+    ty + th - 8 * sc
+  );
+  ctx.textAlign = "left";
+
+  const telX = 10 * sc;
+  const telY = h / 2 - 52 * sc;
+  const telW = 118 * sc;
+  const telH = 72 * sc;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(telX, telY, telW, telH);
+  ctx.strokeStyle = "rgba(164,228,0,0.40)";
+  ctx.lineWidth = 2 * sc;
+  ctx.beginPath();
+  ctx.moveTo(telX, telY);
+  ctx.lineTo(telX, telY + telH);
+  ctx.stroke();
+
+  ctx.font = `${5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = "rgba(164,228,0,0.50)";
+  ctx.fillText("TELEMETRY_DATA", telX + 8 * sc, telY + 12 * sc);
+  ctx.fillStyle = G;
+  ctx.font = `${6.5 * sc}px "Space Mono", monospace`;
+  const rows: [string, string][] = [["ALT", "104.2m"], ["VEL", "0.00 m/s"], ["TMP", "24.5°C"]];
+  let ry = telY + 22 * sc;
+  for (const [k, v] of rows) {
+    ctx.textAlign = "left";
+    ctx.fillText(`${k}:`, telX + 8 * sc, ry);
+    ctx.textAlign = "right";
+    ctx.fillText(v, telX + telW - 8 * sc, ry);
+    ry += 14 * sc;
+  }
+
+  if (p.hasTimer && p.deadlineMs !== null && p.sessionStartMs !== null) {
+    drawTimerHud(ctx, w, h, p.deadlineMs, p.sessionStartMs, p.now);
+  }
+
+  const stripH = 22 * sc;
+  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  ctx.fillRect(0, h - stripH, w, stripH);
+  const topFade = ctx.createLinearGradient(0, h - stripH - 28 * sc, 0, h - stripH);
+  topFade.addColorStop(0, "rgba(0,0,0,0)");
+  topFade.addColorStop(1, "rgba(0,0,0,0.35)");
+  ctx.fillStyle = topFade;
+  ctx.fillRect(0, h - stripH - 28 * sc, w, 28 * sc);
+
+  ctx.font = `${5.5 * sc}px "Space Mono", monospace`;
+  ctx.fillStyle = p.recording ? "#ff4444" : "rgba(164,228,0,0.60)";
+  ctx.textAlign = "left";
+  ctx.fillText(p.recording ? "● REC" : "REC_STDBY", pad, h - 8 * sc);
+  ctx.fillStyle = "rgba(164,228,0,0.60)";
+  ctx.fillText(formatTimecode(p.elapsedSec), pad + 68 * sc, h - 8 * sc);
+  ctx.textAlign = "right";
+  const isoLabel = "ISO_AUTO  f/1.8  ";
+  const isoW = ctx.measureText(isoLabel).width;
+  ctx.fillStyle = "rgba(164,228,0,0.60)";
+  ctx.fillText(isoLabel, w - pad, h - 8 * sc);
+  ctx.fillStyle = "rgba(199,255,92,0.88)";
+  ctx.fillText("1/60", w - pad - isoW - 4 * sc, h - 8 * sc);
 }
 
 function drawTimerHud(
@@ -211,6 +353,8 @@ export default function CameraPageClient() {
   const [recording, setRecording] = useState(false);
   const [recordSetupError, setRecordSetupError] = useState<string | null>(null);
   const [finderStartMs, setFinderStartMs] = useState<number | null>(null);
+  /** getUserMedia 成功のたびに増やし、video へ srcObject + play を確実に同期する */
+  const [streamGeneration, setStreamGeneration] = useState(0);
 
   // カメラ起動
   useEffect(() => {
@@ -223,12 +367,8 @@ export default function CameraPageClient() {
         .then((stream) => {
           if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
           streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            cameraTimeoutRef.current = setTimeout(() => {
-              if (!cancelled) setCameraError("カメラの映像が取得できませんでした。ブラウザを再起動してお試しください。");
-            }, 15000);
-          }
+          // video への接続は useEffect(streamGeneration) 側で行う（ref 未確定・iOS の play 対策）
+          setStreamGeneration((g) => g + 1);
           // torch サポート確認
           const track = stream.getVideoTracks()[0];
           const caps = track?.getCapabilities() as Record<string, unknown> | undefined;
@@ -253,8 +393,32 @@ export default function CameraPageClient() {
       if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
       mediaRecorderRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     };
   }, []);
+
+  // MediaStream → <video>（コミット後の ref に必ず接続。iOS は明示的 play が必要なことが多い）
+  useEffect(() => {
+    if (streamGeneration === 0) return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+    video.muted = true;
+    video.setAttribute("playsinline", "");
+    void video.play().catch(() => {});
+
+    if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
+    cameraTimeoutRef.current = setTimeout(() => {
+      setCameraError("カメラの映像が取得できませんでした。ブラウザを再起動してお試しください。");
+    }, 15000);
+
+    return () => {
+      if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
+      video.srcObject = null;
+    };
+  }, [streamGeneration]);
 
   // フラッシュタイマー cleanup
   useEffect(() => () => {
@@ -312,8 +476,20 @@ export default function CameraPageClient() {
     ctx.drawImage(video, 0, 0, w, h);
     const d = readAppraisalDeadlineMs();
     const s = readAppraisalSessionStartMs();
-    drawAppraisalOverlay(ctx, w, h, d !== null && s !== null);
-    if (d !== null && s !== null) drawTimerHud(ctx, w, h, d, s, Date.now());
+    const now = Date.now();
+    const active = d !== null && s !== null;
+    const hasT = active;
+    const elapsed =
+      finderStartMs !== null ? Math.max(0, Math.floor((now - finderStartMs) / 1000)) : 0;
+    drawSavedViewOverlay(ctx, w, h, {
+      active,
+      hasTimer: hasT,
+      recording,
+      elapsedSec: elapsed,
+      deadlineMs: d,
+      sessionStartMs: s,
+      now,
+    });
 
     canvas.toBlob((blob) => {
       if (!blob) { setCameraError("画像の生成に失敗しました。もう一度シャッターを押してください。"); return; }
@@ -325,7 +501,7 @@ export default function CameraPageClient() {
       flashTimerRef.current = setTimeout(() => setFlashing(false), 160);
       setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return objectUrl; });
     }, "image/png");
-  }, []);
+  }, [recording, finderStartMs]);
 
   const discard = useCallback(() => {
     setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
@@ -461,20 +637,26 @@ export default function CameraPageClient() {
         }
       `}</style>
 
-      <div className="relative flex h-full flex-col overflow-hidden bg-black">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
 
-        {/* ── ファインダー ────────────────────────────────────────────────── */}
-        <div className="relative flex-1 overflow-hidden">
+        {/* ── ファインダー（表示領域を縦いっぱい） ─────────────────────────── */}
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <video
             ref={videoRef}
-            autoPlay playsInline muted
+            autoPlay
+            playsInline
+            muted
+            onLoadedData={() => {
+              void videoRef.current?.play().catch(() => {});
+            }}
             onCanPlay={() => {
               if (cameraTimeoutRef.current !== null) clearTimeout(cameraTimeoutRef.current);
               setFinderStartMs(Date.now());
               setCameraReady(true);
+              void videoRef.current?.play().catch(() => {});
             }}
             onError={() => setCameraError("カメラの映像を取得できませんでした。ブラウザを再起動してお試しください。")}
-            className="h-full w-full object-cover"
+            className="relative z-0 h-full w-full object-cover [transform:translateZ(0)]"
           />
 
           {/* スキャンライン + ドットグリッド */}
@@ -678,37 +860,34 @@ export default function CameraPageClient() {
           )}
 
           {/* シャッターフラッシュ */}
-          {flashing && <div className="pointer-events-none absolute inset-0 bg-white/65" />}
-        </div>
+          {flashing && <div className="pointer-events-none absolute inset-0 z-40 bg-white/65" />}
 
-        {/* ── シャッターボタン ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-center bg-black py-4">
-          <div className="relative">
-            {/* 外側のゆっくり回転するリング */}
-            <div
-              className="singan-spin pointer-events-none absolute inset-[-12px] rounded-full border border-[#a4e400]/15"
-              aria-hidden
-            />
-            <button
-              type="button"
-              onClick={capture}
-              disabled={!cameraReady}
-              aria-label="撮影"
-              className="group relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#a4e400]/35 transition-transform active:scale-90 disabled:opacity-30"
-            >
-              {/* グローイングインナー */}
+          {/* シャッター（ファインダー上に浮遊・映像領域を占有しない） */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+            <div className="pointer-events-auto relative">
               <div
-                className="absolute inset-1.5 rounded-full transition-opacity group-active:opacity-70"
-                style={{
-                  background: "linear-gradient(135deg, #a4e400, #c7ff5c)",
-                  boxShadow: "0 0 28px rgba(164,228,0,0.45)",
-                }}
+                className="singan-spin pointer-events-none absolute inset-[-12px] rounded-full border border-[#a4e400]/15"
+                aria-hidden
               />
-              {/* カメラアイコン */}
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-black/20">
-                <span className="material-symbols-outlined text-[28px] text-black/80">photo_camera</span>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={capture}
+                disabled={!cameraReady}
+                aria-label="撮影"
+                className="group relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#a4e400]/35 shadow-[0_8px_32px_rgba(0,0,0,0.55)] transition-transform active:scale-90 disabled:opacity-30"
+              >
+                <div
+                  className="absolute inset-1.5 rounded-full transition-opacity group-active:opacity-70"
+                  style={{
+                    background: "linear-gradient(135deg, #a4e400, #c7ff5c)",
+                    boxShadow: "0 0 28px rgba(164,228,0,0.45)",
+                  }}
+                />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-black/20">
+                  <span className="material-symbols-outlined text-[28px] text-black/80">photo_camera</span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 

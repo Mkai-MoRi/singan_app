@@ -6,5 +6,9 @@ export const metadata: Metadata = {
 };
 
 export default function CameraPage() {
-  return <CameraPageClient />;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <CameraPageClient />
+    </div>
+  );
 }
